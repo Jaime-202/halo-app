@@ -12,7 +12,6 @@ import com.lifedashboard.data.local.entity.*
         ExerciseSetEntity::class,
         CalendarEventEntity::class,
         WaterIntakeEntity::class,
-        AchievementEntity::class,
         WeightEntryEntity::class,
         MealEntryEntity::class,
         ReminderEntity::class,
@@ -21,7 +20,7 @@ import com.lifedashboard.data.local.entity.*
         SavedMealEntity::class,
         MoodEntryEntity::class
     ],
-    version = 12,
+    version = 13,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -29,7 +28,6 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun workoutDao(): WorkoutDao
     abstract fun calendarEventDao(): CalendarEventDao
     abstract fun waterIntakeDao(): WaterIntakeDao
-    abstract fun achievementDao(): AchievementDao
     abstract fun weightDao(): WeightDao
     abstract fun mealDao(): MealDao
     abstract fun reminderDao(): ReminderDao

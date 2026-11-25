@@ -695,7 +695,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
         )
 
         // ─── Metas & Objetivos Personales (Centralizado) ───────────────────
-        SectionHeader("Metas & Objetivos Personales")
+        SectionHeader("Objetivos")
         SettingsCard {
             SettingsItem(
                 icon      = Icons.AutoMirrored.Filled.DirectionsWalk,
@@ -823,7 +823,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
         }
 
         // ─── Hábitos & Recordatorios Inteligentes ──────────────────────────
-        SectionHeader("Notificaciones & Hábitos")
+        SectionHeader("Avisos automáticos")
         SettingsCard {
             val notificationsEnabled = NotificationManagerCompat.from(context).areNotificationsEnabled()
 
@@ -985,7 +985,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
         }
 
         // ─── Tomas & Recordatorios Personalizados ───────────────────────────
-        SectionHeader("Tomas & Hábitos")
+        SectionHeader("Mis recordatorios")
         SettingsCard {
             SettingsItem(
                 icon      = Icons.Default.AlarmOn,
@@ -1042,7 +1042,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
         }
 
         // ─── Inteligencia Artificial & Coach ──────────────────────────────
-        SectionHeader("Inteligencia Artificial & Coach")
+        SectionHeader("Gemini (foto y texto de comida)")
         SettingsCard {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text("Estilo de Análisis del Coach", style = MaterialTheme.typography.labelLarge, color = White, fontWeight = FontWeight.Bold)
@@ -1084,32 +1084,18 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
         }
 
         // ─── Personalización del Panel ─────────────────────────────────────
-        SectionHeader("Diseño del Panel")
+        SectionHeader("Pantalla Hoy")
         SettingsCard {
             SwitchSettingItem(
-                title           = "Pulso Biométrico Hero",
-                subtitle        = "Muestra el indicador de vitalidad en cabecera",
-                checked         = state.showHeroRings,
-                onCheckedChange = { viewModel.toggleShowHeroRings(it) }
-            )
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            SwitchSettingItem(
-                title           = "Tarjeta de Insight IA",
-                subtitle        = "Muestra el análisis inteligente del día",
-                checked         = state.showAiInsight,
-                onCheckedChange = { viewModel.toggleShowAiInsight(it) }
-            )
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            SwitchSettingItem(
-                title           = "Próximos Eventos",
-                subtitle        = "Visualiza eventos próximos del calendario local",
+                title           = "Próximos eventos",
+                subtitle        = "Muestra tus próximos eventos del calendario al final de Hoy",
                 checked         = state.showUpcomingEvents,
                 onCheckedChange = { viewModel.toggleShowUpcomingEvents(it) }
             )
         }
 
         // ─── Sincronización & Fuentes de Datos ─────────────────────────────
-        SectionHeader("Sincronización & Salud")
+        SectionHeader("Conexiones")
         SettingsCard {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text("Frecuencia de Auto-Sincronización", style = MaterialTheme.typography.labelLarge, color = White, fontWeight = FontWeight.Bold)
@@ -1191,7 +1177,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
         }
 
         // ─── Apariencia & Tema ─────────────────────────────────────────────
-        SectionHeader("Apariencia & Tema")
+        SectionHeader("Tema")
         SettingsCard {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text("Estilo Visual & Colores", style = MaterialTheme.typography.labelLarge, color = White, fontWeight = FontWeight.Bold)
@@ -1229,7 +1215,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
         }
 
         // ─── Gestión de Datos & Privacidad ─────────────────────────────────
-        SectionHeader("Datos & Privacidad")
+        SectionHeader("Datos")
         SettingsCard {
             SettingsItem(
                 icon      = Icons.Default.Lock,

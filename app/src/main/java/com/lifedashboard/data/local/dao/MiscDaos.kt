@@ -1,7 +1,6 @@
 package com.lifedashboard.data.local.dao
 
 import androidx.room.*
-import com.lifedashboard.data.local.entity.AchievementEntity
 import com.lifedashboard.data.local.entity.WaterIntakeEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -29,23 +28,4 @@ interface WaterIntakeDao {
 
     @Query("DELETE FROM water_intake WHERE dateMillis < :cutoffMillis")
     suspend fun deleteOlderThan(cutoffMillis: Long)
-}
-
-@Dao
-interface AchievementDao {
-
-    @Upsert
-    suspend fun upsertAll(achievements: List<AchievementEntity>)
-
-    @Upsert
-    suspend fun upsert(achievement: AchievementEntity)
-
-    @Query("SELECT * FROM achievements ORDER BY unlockedAt DESC")
-    fun getAll(): Flow<List<AchievementEntity>>
-
-    @Query("SELECT * FROM achievements WHERE unlockedAt IS NOT NULL ORDER BY unlockedAt DESC")
-    fun getUnlocked(): Flow<List<AchievementEntity>>
-
-    @Query("SELECT * FROM achievements WHERE id = :id")
-    suspend fun getById(id: String): AchievementEntity?
 }

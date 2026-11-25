@@ -49,21 +49,7 @@ data class WaterIntake(
     val amountMl: Int
 )
 
-data class Achievement(
-    val id: String,
-    val title: String,
-    val description: String,
-    val category: AchievementCategory,
-    val iconName: String,
-    val unlockedAt: Long?,
-    val progress: Float,
-    val targetValue: Float
-) {
-    val isUnlocked: Boolean get() = unlockedAt != null
-    val progressPercent: Float get() = (progress / targetValue).coerceIn(0f, 1f)
-}
 
-enum class AchievementCategory { HEALTH, WORKOUT, SLEEP, CONSISTENCY }
 
 /**
  * Snapshot de progreso diario — usado por el calendario y el widget.

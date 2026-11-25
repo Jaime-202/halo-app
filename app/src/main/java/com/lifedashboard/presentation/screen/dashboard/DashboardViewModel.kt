@@ -16,7 +16,6 @@ import com.lifedashboard.domain.model.CalendarEvent
 import com.lifedashboard.domain.model.DailyProgress
 import com.lifedashboard.domain.model.WorkoutType
 import com.lifedashboard.domain.repository.CalendarRepository
-import com.lifedashboard.domain.usecase.achievement.EvaluateRoutineAchievementUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
@@ -95,8 +94,6 @@ class DashboardViewModel @Inject constructor(
     private val mealDao: com.lifedashboard.data.local.dao.MealDao,
     private val reminderDao: ReminderDao,
     private val calendarRepository: CalendarRepository,
-    private val geminiService: GeminiApiService,
-    private val evaluateAchievements: EvaluateRoutineAchievementUseCase,
     private val userPreferences: UserPreferencesRepository,
     private val energyTargets: com.lifedashboard.data.repository.EnergyTargetsManager,
     private val waterIntakeDao: com.lifedashboard.data.local.dao.WaterIntakeDao,
@@ -113,8 +110,6 @@ class DashboardViewModel @Inject constructor(
         observeWeights()
         observeCalendar()
         observeReminders()
-        buildProgressMap()
-        viewModelScope.launch(Dispatchers.IO) { evaluateAchievements() }
     }
 
     private fun observeUserGoals() {
@@ -273,78 +268,8 @@ class DashboardViewModel @Inject constructor(
             .launchIn(viewModelScope)
     }
 
-    private fun buildProgressMap() {
-        val from = LocalDate.now().minusDays(60)
-        val to   = LocalDate.now().plusDays(7)
-        val fromMillis = from.toStartOfDayMillis()
-        val toMillis   = to.toStartOfDayMillis()
-
-        combine(
-            healthDao.getHealthRange(fromMillis, toMillis),
-            workoutDao.getSessionsInRange(fromMillis, toMillis),
-            mealDao.observeMealsForDay(fromMillis, toMillis),
-            userPreferences.userGoals
-        ) { healthList, sessions, mealsList, goals ->
-            val zone = ZoneId.systemDefault()
-            val healthByDate = healthList.associateBy { Instant.ofEpochMilli(it.dateMillis).atZone(zone).toLocalDate() }
-            val sessionsByDate = sessions.groupBy { session ->
-                Instant.ofEpochMilli(session.dateMillis).atZone(zone).toLocalDate()
-            }
-            val mealsByDate = mealsList.groupBy { meal ->
-                Instant.ofEpochMilli(meal.dateMillis).atZone(zone).toLocalDate()
-            }
-
-            val dates = generateSequence(from) { it.plusDays(1) }
-                .takeWhile { !it.isAfter(to) }
-                .toList()
-
-            val map = dates.associateWith { date ->
-                val h = healthByDate[date]
-                val daySession = sessionsByDate[date]?.firstOrNull()
-                val dayMeals = mealsByDate[date] ?: emptyList()
-                val dayCals = dayMeals.sumOf { it.calories.toDouble() }.toFloat()
-                val steps = h?.steps ?: 0
-                val sleep = h?.sleepHours ?: 0f
-
-                DailyProgress(
-                    date             = date,
-                    workoutCompleted = daySession != null,
-                    workoutType      = when (daySession?.type) {
-                        "REST"     -> WorkoutType.REST
-                        else       -> if (daySession != null) WorkoutType.STRENGTH else null
-                    },
-                    stepsProgress    = if (goals.stepsTarget > 0) (steps.toFloat() / goals.stepsTarget).coerceIn(0f, 1f) else 0f,
-                    sleepProgress    = if (goals.sleepTargetHours > 0) (sleep / goals.sleepTargetHours).coerceIn(0f, 1f) else 0f,
-                    waterProgress    = 0f,
-                    actualSteps      = steps,
-                    actualSleepHours = sleep,
-                    actualCalories   = if ((h?.activeCalories ?: 0f) > 0f) h!!.activeCalories else (steps * 0.04f).coerceAtLeast(0f)
-                )
-            }
-            map
-        }
-        .flowOn(Dispatchers.Default)
-        .onEach { progressMap ->
-            _uiState.update { it.copy(progressByDate = progressMap) }
-        }
-        .launchIn(viewModelScope)
-    }
-
     fun selectDate(date: LocalDate) {
         _uiState.update { it.copy(selectedDate = date) }
-    }
-
-    fun requestAiInsight() {
-        if (_uiState.value.isAiLoading) return
-        viewModelScope.launch {
-            _uiState.update { it.copy(isAiLoading = true) }
-            try {
-                val insight = geminiService.getDailyInsight()
-                _uiState.update { it.copy(aiInsight = insight, isAiLoading = false) }
-            } catch (e: Exception) {
-                _uiState.update { it.copy(isAiLoading = false) }
-            }
-        }
     }
 
     fun setAddWeightDialogVisible(visible: Boolean) {

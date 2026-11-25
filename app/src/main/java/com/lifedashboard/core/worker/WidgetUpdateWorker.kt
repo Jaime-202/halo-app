@@ -44,8 +44,6 @@ class WidgetUpdateWorker @AssistedInject constructor(
             withContext(Dispatchers.IO) {
                 try {
                     // 1. Actualización nativa de Glance
-                    LifeDashboard1x1Widget().updateAll(context)
-                    LifeDashboard1x2Widget().updateAll(context)
                     LifeDashboard2x2Widget().updateAll(context)
                     LifeDashboardWidget().updateAll(context)
                     Log.d(TAG, "Widgets de Glance actualizados con updateAll()")
@@ -57,8 +55,6 @@ class WidgetUpdateWorker @AssistedInject constructor(
                 try {
                     val appWidgetManager = AppWidgetManager.getInstance(context)
                     val receivers = listOf(
-                        LifeDashboard1x1WidgetReceiver::class.java,
-                        LifeDashboard1x2WidgetReceiver::class.java,
                         LifeDashboard2x2WidgetReceiver::class.java,
                         LifeDashboardWidgetReceiver::class.java
                     )

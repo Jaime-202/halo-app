@@ -1,153 +1,43 @@
-# ◯ Halo — Life Dashboard
+# Halo
 
-> **Plataforma Integral de Salud, Nutrición Inteligente con IA Multimodal (Gemini 3.8 Flash), Hábitos, Peso y Rendimiento para Android, con Sincronización en Segundo Plano y Widgets Glassmorphic.**
+App Android de salud personal: tu día, tu historial y tu comida en un solo sitio.
+Local-first: tus datos viven en el móvil y solo salen si tú haces una copia de seguridad.
 
-[![Android](https://img.shields.io/badge/Platform-Android%209.0%2B%20(API%2028%2B)-3DDC84.svg?style=flat&logo=android)](https://www.android.com)
-[![Kotlin](https://img.shields.io/badge/Kotlin-2.0.21-7F52FF.svg?style=flat&logo=kotlin)](https://kotlinlang.org)
-[![Compose](https://img.shields.io/badge/Jetpack%20Compose-BOM%202024.09.00-4285F4.svg?style=flat&logo=jetpackcompose)](https://developer.android.com/jetpack/compose)
-[![Health Connect](https://img.shields.io/badge/Health%20Connect-1.1.0--alpha11-EA4335.svg?style=flat&logo=googlefit)](https://developer.android.com/health-and-fitness/guides/health-connect)
-[![Glance](https://img.shields.io/badge/Jetpack%20Glance-Widgets%201.1.1-00C853.svg?style=flat)](https://developer.android.com/jetpack/compose/glance)
-[![Google Gemini](https://img.shields.io/badge/AI%20Engine-Gemini%203.8%20Flash-8E24AA.svg?style=flat&logo=google)](https://aistudio.google.com)
-[![Room DB](https://img.shields.io/badge/Database-Room%202.6.1%20SQLite-4CAF50.svg?style=flat)](https://developer.android.com/training/data-storage/room)
-[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Android](https://img.shields.io/badge/Android-9.0%2B%20(API%2028)-7CF5D8.svg?style=flat&logo=android&logoColor=white)](https://www.android.com)
+[![Kotlin](https://img.shields.io/badge/Kotlin-2.0-8AA7FF.svg?style=flat&logo=kotlin&logoColor=white)](https://kotlinlang.org)
+[![Compose](https://img.shields.io/badge/Jetpack%20Compose-Material%203-7CF5D8.svg?style=flat)](https://developer.android.com/jetpack/compose)
+[![License](https://img.shields.io/badge/License-MIT-8AA7FF.svg)](LICENSE)
 
 ---
 
-## 📖 Descripción General
+## Qué hace
 
-**Halo (Life Dashboard)** es una aplicación moderna, fluida y reactiva para Android concebida bajo la filosofía **Local-First**, garantizando **privacidad absoluta**, estética *Dark Obsidian Glassmorphic* y autonomía energética. 
+**Hoy** — una pantalla por capas:
+anillo con el *Halo Score* del día y la recuperación, balance de calorías (comido frente a gastado),
+cuatro métricas a elegir, tus recordatorios, ánimo y energía y una sola frase útil.
 
-Centraliza en un único ecosistema la monitorización biométrica en tiempo real (pasos, gasto calórico activo, arquitectura del sueño), el control de la ingesta nutricional mediante visión artificial multimodal, el seguimiento y análisis de tendencia del peso corporal, la gestión de sesiones de entrenamiento de fuerza y cardio, recordatorios circadianos de descanso y widgets de pantalla de inicio transparentes que se actualizan automáticamente en segundo plano.
+**Comida**
+- Buscador único: alimentos genéricos primero y productos de supermercados españoles
+  (Mercadona, Carrefour, Dia, Alcampo, Lidl, Eroski, El Corte Inglés) vía Open Food Facts.
+- Código de barras, lectura de etiquetas nutricionales con OCR en el dispositivo, foto o texto con Gemini.
+- Favoritos, recientes, raciones rápidas, comidas guardadas y "copiar ayer".
+- Fibra, azúcar y sal. Registro sin colores de culpa.
 
----
+**Calorías personales** — bienvenida con sexo, edad, altura, peso, actividad y objetivo.
+Mifflin-St Jeor × actividad, y gasto adaptativo con tus datos reales de peso y comida.
 
-## 🌟 Módulos y Funcionalidades en Detalle
+**Calendario** — semana, mes y año con filtros (Halo, kcal, pasos, sueño, actividad, recordatorios, ánimo),
+resumen de cada periodo, racha con comodín semanal y conclusiones automáticas que cruzan tus datos.
 
-### 🥗 1. Comida y Nutrición Inteligente con IA (Gemini 3.8 Flash + Motor Local)
+**Actividad** — tus entrenos de Symmetry (u otra app) leídos desde Health Connect:
+minutos, calorías y pulso por sesión, frecuencia semanal y días de descanso.
+Importación opcional del CSV de Symmetry para ver ejercicios, series y pesos.
 
-* **Reconocimiento Visual de Platos con Gemini 3.8 Flash:**
-  - Captura una foto directamente con la cámara del dispositivo o elígela de la galería.
-  - El motor multimodal analiza la imagen reconociendo ingredientes, guarniciones y porciones, devolviendo una estimación detallada de gramos, calorías totales, proteínas, hidratos de carbono y grasas.
-  - Incluye soporte para **contexto adicional antes del análisis** (por ejemplo: *"son 2 cucharadas de aceite de oliva y salsa de soja sin azúcar"*).
+**Botón +** — registra comida, peso, agua o ánimo desde cualquier pantalla.
 
-* **Detección de Marcas Españolas vs. Alimentos Genéricos:**
-  - Sistema de parsing inteligente que distingue productos de marca específica de supermercados (**Hacendado / Mercadona**, **Carrefour**, **Día**, **Alcampo**, **Lidl / Milbona**, **Danone**, **El Corte Inglés / Supercor**, **Central Lechera Asturiana**, etc.).
-  - Si el usuario indica la marca (por ejemplo: *"yogur de hacendado y una manzana"*), el sistema etiqueta el producto como marca oficial con su correspondiente badge violeta (`[Hacendado]`) y asigna la manzana como producto **Genérico** limpio sin etiquetas redundantes.
-  - La segmentación sintáctica por cláusulas evita la contaminación de marcas entre distintos alimentos de una misma frase.
-
-* **Protección Estricta de la Cuota Gratuita de Gemini (~20 peticiones diarias):**
-  - Todas las consultas en segundo plano, el **Coach Nutricional** y los **Insights del Panel** operan de forma **100% offline y local** mediante algoritmos fisiológicos heurísticos (consumo de **0 peticiones** de API).
-  - Las peticiones de la clave API se reservan de forma exclusiva para cuando el usuario solicita explícitamente analizar una **foto de comida** o una consulta compleja de **texto libre**.
-
-* **Catálogo Integrado de Supermercados con Fotografías HD:**
-  - Buscador predictivo ultra-rápido en memoria con ranking de relevancia basado en productos habituales de la compra española.
-  - Galería visual de empaquetados reales y alimentos frescos.
-
-* **Escáner de Códigos de Barras Nativo (Google Code Scanner):**
-  - Escaneo instantáneo mediante Google Play Services (sin necesidad de permisos invasivos de cámara para el proceso básico).
-  - Conexión directa con la API de **Open Food Facts** para importar automáticamente la información nutricional, marca e imagen del producto.
-
-* **Calculador Científico de Ingesta y Macros (Mifflin-St Jeor):**
-  - Estimación precisa de la Tasa Metabólica Basal (BMR) y Gasto Energético Total Diario (TDEE).
-  - Ajuste instantáneo según objetivo (Déficit / Pérdida de grasa, Mantenimiento normocalórico o Superávit / Volumen muscular) y distribución óptima de macronutrientes.
-
----
-
-### 🔥 2. Objetivos Calóricos Desacoplados e Independientes
-
-A diferencia de otras apps que mezclan el gasto energético con la comida:
-* **Objetivo de Calorías Activas Quemadas (`activeCaloriesTarget`):**
-  - Establece cuántas calorías deseas quemar cada día mediante tus pasos, movimiento y ejercicio (ej. 400, 500, 600 u 800 kcal).
-  - Alimenta la tarjeta de **Calorías** del panel principal, el anillo de progreso circular y la sección biométrica de **Salud**.
-  - Puede modificarse en 1 toque desde la propia tarjeta de Salud con el botón **[Meta]** o desde Ajustes.
-* **Objetivo de Ingesta Nutricional (`caloriesTarget`):**
-  - Gestiona exclusivamente la comida consumida frente a las necesidades energéticas diarias (ej. 1914 o 2200 kcal).
-  - Ambos objetivos son **100% independientes**: cambiar el objetivo de calorías activas nunca altera ni resetea la ingesta de comida, y viceversa.
-
----
-
-### 📊 3. Panel Principal (Vitality Dashboard)
-
-* **Anillos de Progreso Neón (Vitality Rings):** Representación visual simultánea del progreso de **Pasos** (Cyan), **Gasto Calórico Activo** (Ámbar) y **Sueño** (Turquesa).
-* **Pulso Biométrico en Tiempo Real:** Tarjeta condensada con métricas activas conectadas en vivo con Health Connect.
-* **Pilares Modulares de Rendimiento:** Tarjetas interactivas con acceso directo a cada módulo especializado (Entrenamiento, Pasos, Sueño, Calorías).
-* **Calendario de Consistencia Mensual / Semanal:** Historial visual interactivo que evalúa el cumplimiento de hábitos día a día.
-* **Próximos Eventos de Agenda:** Integración opcional con el proveedor de calendario del dispositivo para anticipar eventos programados.
-
----
-
-### 🏃 4. Sincronización Biométrica con Health Connect
-
-* **Lectura Idempotente y Robusta:**
-  - Sincronización continua de pasos diarios (`StepsRecord`), distancia recorrida (`DistanceRecord`), calorías activas quemadas (`ActiveCaloriesBurnedRecord`) y registro de sueño (`SleepSessionRecord`).
-  - Detección de sesiones de entrenamiento registradas por apps de terceros o wearables (Samsung Health, Google Fit, Garmin, Polar, Whoop, etc.).
-* **Frecuencias de Sincronización Flexibles:** Tareas periódicas gestionadas con `WorkManager` (cada 15, 30 o 60 minutos) y botón de sincronización manual instantánea.
-
----
-
-### 🏋️ 5. Entrenamiento de Fuerza y Cardio
-
-* **Enfoque en Fuerza y Progresión:** Registro detallado de ejercicios, series, repeticiones efectivas y peso levantado.
-* **Detección Automática de Sesiones:** Días de descanso activo y días de entrenamiento estructurado con cálculo de volumen total.
-* **Historial Cronológico:** Vista en línea de tiempo de entrenamientos completados con métricas de duración y tipo de sesión.
-
----
-
-### ⚖️ 6. Control y Análisis de Peso Corporal
-
-* **Registro Rápido y Ergonómico:** Entrada de peso con micro-ajustes incrementales (±0.1 kg, ±0.5 kg) y notas contextuales (ej. *"en ayunas tras entreno"*).
-* **Cálculo de IMC y Tendencias:** Evaluación contextualizada del Índice de Masa Corporal y cálculo de delta respecto al pesaje anterior.
-* **Persistencia Segura en Room:** Historial completo con posibilidad de eliminación granular de registros atípicos.
-
----
-
-### 🌙 7. Optimización Circadiana y Descanso
-
-* **Calculador de Hora de Dormir Óptima:** Algoritmo que calcula la hora límite para acostarse tomando como referencia la hora de levantarse programada y el objetivo de horas de sueño.
-* **Notificación Preventiva 30 Minutos Antes:** Alerta discreta en el móvil para iniciar la desconexión de pantallas y preparar el descanso.
-
----
-
-### 🧩 8. Widgets Glassmorphic para Pantalla de Inicio (Jetpack Glance)
-
-Diseñados con bordes sutiles, fondo translúcido y compatibilidad con modo oscuro:
-* **Micro Widget (1x1):** Indicador compacto de vitalidad con métrica principal.
-* **Cápsula de Pulso (1x2 / 2x1):** Tres columnas perfectamente proporcionadas para Pasos, Calorías y Sueño con barras de progreso individuales.
-* **Cuadrante Glass (2x2):** Vista en matriz con las cuatro métricas clave de salud.
-* **Suite Completa (4x2):** Panel ejecutivo con métricas de actividad, estado del entrenamiento y próximo evento.
-* **Actualización Autónoma:** Los widgets se refrescan automáticamente cada 15 minutos en segundo plano (`WidgetUpdateWorker`) y reaccionan en tiempo real cuando se registra cualquier cambio en la aplicación.
-
----
-
-## 🏗️ Arquitectura de Software
-
-La aplicación sigue los principios de **Clean Architecture** y el patrón oficial **MVVM (Model-View-ViewModel)** recomendado por Google Android:
-
-```
-app/src/main/java/com/lifedashboard/
-├── core/
-│   ├── scheduler/              # Orquestador central de tareas en segundo plano
-│   └── worker/                 # HealthConnectSyncWorker, WidgetUpdateWorker, BedtimeNotificationWorker
-├── data/
-│   ├── local/                  # Room Database (Entidades, DAOs y Migraciones de esquema)
-│   ├── remote/
-│   │   ├── food/               # FoodCatalogService, FoodAiService, RealFoodImageResolver
-│   │   └── gemini/             # GeminiApiService, GeminiModelManager (descubrimiento dinámico)
-│   └── repository/             # Repositorios: Health, Nutrition, Workout, Calendar, UserPreferences
-├── domain/
-│   ├── model/                  # Modelos puros de dominio (HealthSummary, UserGoals, MealEntry)
-│   └── usecase/                # Casos de uso (cálculo de ingesta, balance calórico, estimaciones)
-└── presentation/
-    ├── navigation/             # NavGraph, Screen (Panel, Entreno, Comida, Salud, Config)
-    ├── screen/
-    │   ├── dashboard/          # Pantalla principal (Vitality Rings, tarjetas de pilares)
-    │   ├── nutrition/          # Comida, IA texto/foto, supermercados, escáner de barras, macros
-    │   ├── workout/            # Registro y métricas de entrenamientos de fuerza
-    │   ├── health/             # Pantalla de Salud & Metas (Pasos, Sueño, Calorías Activas)
-    │   └── settings/           # Configuración general, perfil, API keys, objetivos de gasto
-    ├── theme/                  # Sistema de diseño Dark Obsidian, paleta de colores y tipografía
-    └── widget/                 # Jetpack Glance Widgets (1x1, 1x2, 2x2, 4x2) y AppWidgetReceivers
-```
+**Más** — resumen semanal los domingos, avisos automáticos opcionales, recordatorios propios,
+copia de seguridad cifrada (AES-256-GCM) en Google Drive o donde quieras, exportación CSV
+y dos widgets (Anillo 2x2 y Hoy 4x2).
 
 ---
 

@@ -1,604 +1,222 @@
 package com.lifedashboard.presentation.widget
 
 import android.content.Context
-import androidx.compose.runtime.*
-import androidx.compose.ui.unit.DpSize
+import android.graphics.Bitmap
+import android.graphics.Paint
+import android.graphics.RectF
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.*
+import androidx.glance.action.clickable
 import androidx.glance.appwidget.*
-import androidx.glance.appwidget.LinearProgressIndicator
-import androidx.glance.appwidget.provideContent
 import androidx.glance.layout.*
-import androidx.glance.text.*
+import androidx.glance.text.FontFamily
+import androidx.glance.text.FontWeight
+import androidx.glance.text.Text
+import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
-import androidx.compose.ui.graphics.Color
-import com.lifedashboard.data.local.dao.CalendarEventDao
 import com.lifedashboard.data.local.dao.HealthDao
 import com.lifedashboard.data.local.dao.MealDao
-import com.lifedashboard.data.local.dao.WorkoutDao
+import com.lifedashboard.data.local.dao.ReminderDao
+import com.lifedashboard.data.local.dao.WaterIntakeDao
 import com.lifedashboard.data.repository.UserPreferencesRepository
+import com.lifedashboard.domain.energy.ActivityLevel
+import com.lifedashboard.domain.energy.EnergyCalculator
+import com.lifedashboard.domain.energy.Sex
+import com.lifedashboard.domain.score.DayInputs
+import com.lifedashboard.domain.score.HaloScores
+import com.lifedashboard.presentation.MainActivity
 import com.lifedashboard.presentation.theme.*
 import dagger.hilt.android.EntryPointAccessors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
-import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.ZoneId
-import java.time.format.DateTimeFormatter
+import java.util.Locale
+import kotlin.math.roundToInt
 
-// ─── Paleta Glassmorphic Translúcida ─────────────────────────────────────────
-// Alta transparencia (~20-25%) para que el fondo de pantalla del launcher sea claramente visible
-private val GlassBackground       = Color(0x380D0722) // ~22% opacidad obsidian glass
-private val GlassColumnBackground = Color(0x24FFFFFF) // ~14% glass tint sutil
-private val NeonCyan              = Color(0xFF22D3EE)
-private val NeonAmber             = Color(0xFFFBBF24)
-private val NeonTeal              = Color(0xFF2DD4BF)
-private val NeonViolet            = Color(0xFFB894FF)
-private val TrackColor            = Color(0x33FFFFFF)
-
-/**
- * ─────────────────────────────────────────────────────────────────────────────
- * 1. LifeDashboard1x1Widget — Badge Biométrico Glassmorphic (1x1)
- *
- * Muestra pasos en grande y micro-cápsulas para calorías y descanso.
- * Fondo ultra translúcido sin emojis y con alineación central precisa.
- * ─────────────────────────────────────────────────────────────────────────────
+/*
+ * Widgets de Halo (Jetpack Glance):
+ *  - Anillo (2x2): Halo Score y lo que te queda por comer.
+ *  - Hoy (4x2): anillo + balance + pasos, sueño, agua y proteína.
+ * Mantienen los nombres de receptor anteriores para no romper los widgets ya colocados.
  */
-class LifeDashboard1x1Widget : GlanceAppWidget() {
-    override suspend fun provideGlance(context: Context, id: GlanceId) {
-        val data = loadWidgetData(context)
-        provideContent {
-            Column(
-                modifier = GlanceModifier
-                    .fillMaxSize()
-                    .background(ColorProvider(GlassBackground))
-                    .cornerRadius(18.dp)
-                    .padding(8.dp),
-                verticalAlignment   = Alignment.Vertical.CenterVertically,
-                horizontalAlignment = Alignment.Horizontal.CenterHorizontally
-            ) {
-                // Cabecera con Vitality Score
-                Row(
-                    modifier            = GlanceModifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.Horizontal.CenterHorizontally,
-                    verticalAlignment   = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text  = "VITAL · ${data.vitalityScore}%",
-                        style = TextStyle(color = ColorProvider(NeonViolet), fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                    )
-                }
 
-                Spacer(GlanceModifier.height(3.dp))
+// ─── Datos ───────────────────────────────────────────────────────────────────
 
-                // Métrica principal: Pasos
-                Text(
-                    text  = data.steps.formatK(),
-                    style = TextStyle(color = ColorProvider(White), fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                )
-                Text(
-                    text  = "PASOS",
-                    style = TextStyle(color = ColorProvider(NeonCyan), fontSize = 8.sp, fontWeight = FontWeight.Bold)
-                )
-
-                Spacer(GlanceModifier.height(4.dp))
-
-                // Fila micro con calorías y sueño
-                Row(
-                    modifier            = GlanceModifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.Horizontal.CenterHorizontally,
-                    verticalAlignment   = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text  = "${data.calories} kcal",
-                        style = TextStyle(color = ColorProvider(NeonAmber), fontSize = 8.sp, fontWeight = FontWeight.Bold)
-                    )
-                    Spacer(GlanceModifier.width(4.dp))
-                    Text(
-                        text  = "·",
-                        style = TextStyle(color = ColorProvider(Gray400), fontSize = 8.sp)
-                    )
-                    Spacer(GlanceModifier.width(4.dp))
-                    Text(
-                        text  = "${data.sleepHours}h",
-                        style = TextStyle(color = ColorProvider(NeonTeal), fontSize = 8.sp, fontWeight = FontWeight.Bold)
-                    )
-                }
-
-                Spacer(GlanceModifier.height(4.dp))
-
-                // Micro barra de pasos
-                LinearProgressIndicator(
-                    progress        = (data.steps.toFloat() / data.stepsTarget).coerceIn(0f, 1f),
-                    modifier        = GlanceModifier.fillMaxWidth().height(3.dp),
-                    color           = ColorProvider(NeonCyan),
-                    backgroundColor = ColorProvider(TrackColor)
-                )
-            }
-        }
-    }
-}
-
-/**
- * ─────────────────────────────────────────────────────────────────────────────
- * 2. LifeDashboard1x2Widget — Cápsula Translúcida Tri-Métrica (2x1 o 1x2)
- *
- * Muestra Pasos (Cyan), Calorías (Ámbar) y Sueño (Teal) en 3 columnas perfectamente
- * alineadas y simétricas, con fondo semi-transparente y sin emojis.
- * ─────────────────────────────────────────────────────────────────────────────
- */
-class LifeDashboard1x2Widget : GlanceAppWidget() {
-    override suspend fun provideGlance(context: Context, id: GlanceId) {
-        val data = loadWidgetData(context)
-        provideContent {
-            Row(
-                modifier = GlanceModifier
-                    .fillMaxSize()
-                    .background(ColorProvider(GlassBackground))
-                    .cornerRadius(18.dp)
-                    .padding(6.dp),
-                verticalAlignment   = Alignment.Vertical.CenterVertically,
-                horizontalAlignment = Alignment.Horizontal.CenterHorizontally
-            ) {
-                // 1. Columna de Pasos (Cyan)
-                Column(
-                    modifier            = GlanceModifier
-                        .defaultWeight()
-                        .fillMaxHeight()
-                        .background(ColorProvider(GlassColumnBackground))
-                        .cornerRadius(12.dp)
-                        .padding(horizontal = 4.dp, vertical = 6.dp),
-                    horizontalAlignment = Alignment.Horizontal.CenterHorizontally,
-                    verticalAlignment   = Alignment.Vertical.CenterVertically
-                ) {
-                    Text(
-                        text     = "PASOS",
-                        style    = TextStyle(color = ColorProvider(NeonCyan), fontSize = 9.sp, fontWeight = FontWeight.Bold),
-                        maxLines = 1
-                    )
-                    Spacer(GlanceModifier.height(3.dp))
-                    Text(
-                        text     = "${data.steps}",
-                        style    = TextStyle(color = ColorProvider(White), fontSize = 13.sp, fontWeight = FontWeight.Bold),
-                        maxLines = 1
-                    )
-                    Spacer(GlanceModifier.height(5.dp))
-                    LinearProgressIndicator(
-                        progress        = (data.steps.toFloat() / data.stepsTarget).coerceIn(0f, 1f),
-                        modifier        = GlanceModifier.fillMaxWidth().height(3.dp).padding(horizontal = 4.dp),
-                        color           = ColorProvider(NeonCyan),
-                        backgroundColor = ColorProvider(TrackColor)
-                    )
-                }
-
-                Spacer(GlanceModifier.width(4.dp))
-
-                // 2. Columna de Calorías Activas (Ámbar)
-                Column(
-                    modifier            = GlanceModifier
-                        .defaultWeight()
-                        .fillMaxHeight()
-                        .background(ColorProvider(GlassColumnBackground))
-                        .cornerRadius(12.dp)
-                        .padding(horizontal = 4.dp, vertical = 6.dp),
-                    horizontalAlignment = Alignment.Horizontal.CenterHorizontally,
-                    verticalAlignment   = Alignment.Vertical.CenterVertically
-                ) {
-                    Text(
-                        text     = "KCAL",
-                        style    = TextStyle(color = ColorProvider(NeonAmber), fontSize = 9.sp, fontWeight = FontWeight.Bold),
-                        maxLines = 1
-                    )
-                    Spacer(GlanceModifier.height(3.dp))
-                    Text(
-                        text     = "${data.calories}",
-                        style    = TextStyle(color = ColorProvider(White), fontSize = 13.sp, fontWeight = FontWeight.Bold),
-                        maxLines = 1
-                    )
-                    Spacer(GlanceModifier.height(5.dp))
-                    LinearProgressIndicator(
-                        progress        = (data.calories.toFloat() / data.caloriesTarget).coerceIn(0f, 1f),
-                        modifier        = GlanceModifier.fillMaxWidth().height(3.dp).padding(horizontal = 4.dp),
-                        color           = ColorProvider(NeonAmber),
-                        backgroundColor = ColorProvider(TrackColor)
-                    )
-                }
-
-                Spacer(GlanceModifier.width(4.dp))
-
-                // 3. Columna de Sueño (Teal)
-                Column(
-                    modifier            = GlanceModifier
-                        .defaultWeight()
-                        .fillMaxHeight()
-                        .background(ColorProvider(GlassColumnBackground))
-                        .cornerRadius(12.dp)
-                        .padding(horizontal = 4.dp, vertical = 6.dp),
-                    horizontalAlignment = Alignment.Horizontal.CenterHorizontally,
-                    verticalAlignment   = Alignment.Vertical.CenterVertically
-                ) {
-                    Text(
-                        text     = "SUEÑO",
-                        style    = TextStyle(color = ColorProvider(NeonTeal), fontSize = 9.sp, fontWeight = FontWeight.Bold),
-                        maxLines = 1
-                    )
-                    Spacer(GlanceModifier.height(3.dp))
-                    Text(
-                        text     = "${data.sleepHours}h",
-                        style    = TextStyle(color = ColorProvider(White), fontSize = 13.sp, fontWeight = FontWeight.Bold),
-                        maxLines = 1
-                    )
-                    Spacer(GlanceModifier.height(5.dp))
-                    LinearProgressIndicator(
-                        progress        = (data.sleepHours / data.sleepTarget).coerceIn(0f, 1f),
-                        modifier        = GlanceModifier.fillMaxWidth().height(3.dp).padding(horizontal = 4.dp),
-                        color           = ColorProvider(NeonTeal),
-                        backgroundColor = ColorProvider(TrackColor)
-                    )
-                }
-            }
-        }
-    }
-}
-
-/**
- * ─────────────────────────────────────────────────────────────────────────────
- * 3. LifeDashboard2x2Widget — Cuadrante Glassmorphic Avanzado (2x2)
- *
- * Muestra Pasos, Calorías y Sueño con barras completas, cabecera e índice vital.
- * ─────────────────────────────────────────────────────────────────────────────
- */
-class LifeDashboard2x2Widget : GlanceAppWidget() {
-    override suspend fun provideGlance(context: Context, id: GlanceId) {
-        val data = loadWidgetData(context)
-        provideContent {
-            Column(
-                modifier = GlanceModifier
-                    .fillMaxSize()
-                    .background(ColorProvider(GlassBackground))
-                    .cornerRadius(20.dp)
-                    .padding(12.dp),
-                verticalAlignment = Alignment.Vertical.CenterVertically
-            ) {
-                // Header estilizado con Vital Score
-                Row(
-                    modifier            = GlanceModifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.Horizontal.Start,
-                    verticalAlignment   = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text  = "VITAL",
-                        style = TextStyle(color = ColorProvider(White), fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                    )
-                    Spacer(GlanceModifier.defaultWeight())
-                    Text(
-                        text  = "${data.vitalityScore}% · ${data.dateString}",
-                        style = TextStyle(color = ColorProvider(NeonViolet), fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                    )
-                }
-
-                Spacer(GlanceModifier.height(8.dp))
-
-                // 1. Pasos
-                GlassMetricRow(
-                    tag      = "PASOS",
-                    value    = "${data.steps.formatK()} / ${data.stepsTarget.formatK()}",
-                    progress = (data.steps.toFloat() / data.stepsTarget).coerceIn(0f, 1f),
-                    color    = ColorProvider(NeonCyan)
-                )
-
-                Spacer(GlanceModifier.height(6.dp))
-
-                // 2. Calorías
-                GlassMetricRow(
-                    tag      = "CALORÍAS",
-                    value    = "${data.calories} / ${data.caloriesTarget.toInt()} kcal",
-                    progress = (data.calories.toFloat() / data.caloriesTarget).coerceIn(0f, 1f),
-                    color    = ColorProvider(NeonAmber)
-                )
-
-                Spacer(GlanceModifier.height(6.dp))
-
-                // 3. Sueño
-                GlassMetricRow(
-                    tag      = "SUEÑO",
-                    value    = "${data.sleepHours}h / ${data.sleepTarget.toInt()}h",
-                    progress = (data.sleepHours / data.sleepTarget).coerceIn(0f, 1f),
-                    color    = ColorProvider(NeonTeal)
-                )
-            }
-        }
-    }
-}
-
-/**
- * ─────────────────────────────────────────────────────────────────────────────
- * 4. LifeDashboardWidget — Widget Amplio Completo (4x2 / Responsivo)
- *
- * Incluye Pasos, Calorías, Sueño, Entreno y Próximo Evento de Calendario.
- * ─────────────────────────────────────────────────────────────────────────────
- */
-class LifeDashboardWidget : GlanceAppWidget() {
-
-    companion object {
-        private val COMPACT_SIZE = DpSize(120.dp, 100.dp)
-        private val EXPANDED_SIZE = DpSize(220.dp, 100.dp)
-    }
-
-    override val sizeMode = SizeMode.Responsive(setOf(COMPACT_SIZE, EXPANDED_SIZE))
-
-    override suspend fun provideGlance(context: Context, id: GlanceId) {
-        val data = loadWidgetData(context)
-
-        provideContent {
-            val size = LocalSize.current
-            if (size.width < 180.dp) {
-                CompactWidgetContent(data = data)
-            } else {
-                ExpandedWidgetContent(data = data)
-            }
-        }
-    }
-}
-
-@Composable
-fun ExpandedWidgetContent(data: WidgetData) {
-    Column(
-        modifier = GlanceModifier
-            .fillMaxSize()
-            .background(ColorProvider(GlassBackground))
-            .cornerRadius(22.dp)
-            .padding(14.dp)
-    ) {
-        // Cabecera
-        Row(
-            modifier              = GlanceModifier.fillMaxWidth(),
-            horizontalAlignment   = Alignment.Horizontal.Start,
-            verticalAlignment     = Alignment.CenterVertically
-        ) {
-            Text(
-                text  = "VITAL SUITE",
-                style = TextStyle(color = ColorProvider(White), fontSize = 13.sp, fontWeight = FontWeight.Bold)
-            )
-            Spacer(GlanceModifier.defaultWeight())
-            Text(
-                text  = "${data.dateString} · ${data.vitalityScore}%",
-                style = TextStyle(color = ColorProvider(NeonViolet), fontSize = 11.sp, fontWeight = FontWeight.Bold)
-            )
-        }
-
-        Spacer(GlanceModifier.height(8.dp))
-
-        // Fila 1: Pasos
-        GlassMetricRow(
-            tag      = "PASOS",
-            value    = "${data.steps.formatK()} / ${data.stepsTarget.formatK()}",
-            progress = (data.steps.toFloat() / data.stepsTarget).coerceIn(0f, 1f),
-            color    = ColorProvider(NeonCyan)
-        )
-
-        Spacer(GlanceModifier.height(5.dp))
-
-        // Fila 2: Calorías Activas
-        GlassMetricRow(
-            tag      = "CALORÍAS",
-            value    = "${data.calories} / ${data.caloriesTarget.toInt()} kcal",
-            progress = (data.calories.toFloat() / data.caloriesTarget).coerceIn(0f, 1f),
-            color    = ColorProvider(NeonAmber)
-        )
-
-        Spacer(GlanceModifier.height(5.dp))
-
-        // Fila 3: Sueño
-        GlassMetricRow(
-            tag      = "SUEÑO",
-            value    = "${data.sleepHours}h / ${data.sleepTarget.toInt()}h",
-            progress = (data.sleepHours / data.sleepTarget).coerceIn(0f, 1f),
-            color    = ColorProvider(NeonTeal)
-        )
-
-        // Próximo evento de agenda
-        if (data.nextEvent != null) {
-            Spacer(GlanceModifier.height(6.dp))
-            Row(
-                modifier = GlanceModifier
-                    .fillMaxWidth()
-                    .background(ColorProvider(GlassColumnBackground))
-                    .cornerRadius(8.dp)
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text     = "AGENDA: ${data.nextEvent}",
-                    style    = TextStyle(color = ColorProvider(Gray300), fontSize = 9.sp),
-                    maxLines = 1
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun CompactWidgetContent(data: WidgetData) {
-    Column(
-        modifier = GlanceModifier
-            .fillMaxSize()
-            .background(ColorProvider(GlassBackground))
-            .cornerRadius(18.dp)
-            .padding(10.dp),
-        verticalAlignment   = Alignment.Vertical.CenterVertically,
-        horizontalAlignment = Alignment.Horizontal.CenterHorizontally
-    ) {
-        Row(
-            modifier            = GlanceModifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.Horizontal.Start,
-            verticalAlignment   = Alignment.CenterVertically
-        ) {
-            Text(text = "Halo", style = TextStyle(color = ColorProvider(White), fontSize = 11.sp, fontWeight = FontWeight.Bold))
-            Spacer(GlanceModifier.defaultWeight())
-            Text(text = "${data.vitalityScore}%", style = TextStyle(color = ColorProvider(NeonViolet), fontSize = 9.sp, fontWeight = FontWeight.Bold))
-        }
-
-        Spacer(GlanceModifier.height(6.dp))
-
-        Row(
-            modifier            = GlanceModifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.Horizontal.CenterHorizontally,
-            verticalAlignment   = Alignment.CenterVertically
-        ) {
-            Column(modifier = GlanceModifier.defaultWeight(), horizontalAlignment = Alignment.Horizontal.CenterHorizontally) {
-                Text(text = "PASOS", style = TextStyle(color = ColorProvider(NeonCyan), fontSize = 8.sp, fontWeight = FontWeight.Bold))
-                Text(text = data.steps.formatK(), style = TextStyle(color = ColorProvider(White), fontSize = 12.sp, fontWeight = FontWeight.Bold))
-            }
-            Column(modifier = GlanceModifier.defaultWeight(), horizontalAlignment = Alignment.Horizontal.CenterHorizontally) {
-                Text(text = "KCAL", style = TextStyle(color = ColorProvider(NeonAmber), fontSize = 8.sp, fontWeight = FontWeight.Bold))
-                Text(text = "${data.calories}", style = TextStyle(color = ColorProvider(White), fontSize = 12.sp, fontWeight = FontWeight.Bold))
-            }
-            Column(modifier = GlanceModifier.defaultWeight(), horizontalAlignment = Alignment.Horizontal.CenterHorizontally) {
-                Text(text = "SUEÑO", style = TextStyle(color = ColorProvider(NeonTeal), fontSize = 8.sp, fontWeight = FontWeight.Bold))
-                Text(text = "${data.sleepHours}h", style = TextStyle(color = ColorProvider(White), fontSize = 12.sp, fontWeight = FontWeight.Bold))
-            }
-        }
-
-        Spacer(GlanceModifier.height(4.dp))
-
-        Text(
-            text  = if (data.workoutDone) "ENTRENAMIENTO COMPLETADO" else "PENDIENTE DE ENTRENO",
-            style = TextStyle(color = ColorProvider(if (data.workoutDone) NeonViolet else Gray400), fontSize = 8.sp, fontWeight = FontWeight.Bold)
-        )
-    }
-}
-
-@Composable
-private fun GlassMetricRow(
-    tag: String,
-    value: String,
-    progress: Float,
-    color: ColorProvider
-) {
-    Column(
-        modifier = GlanceModifier
-            .fillMaxWidth()
-            .background(ColorProvider(GlassColumnBackground))
-            .cornerRadius(10.dp)
-            .padding(horizontal = 10.dp, vertical = 6.dp)
-    ) {
-        Row(
-            modifier = GlanceModifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text  = tag,
-                style = TextStyle(color = color, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-            )
-            Spacer(GlanceModifier.defaultWeight())
-            Text(
-                text  = value,
-                style = TextStyle(color = ColorProvider(White), fontSize = 10.sp, fontWeight = FontWeight.Bold)
-            )
-        }
-        Spacer(GlanceModifier.height(4.dp))
-        LinearProgressIndicator(
-            progress        = progress,
-            modifier        = GlanceModifier.fillMaxWidth().height(3.dp),
-            color           = color,
-            backgroundColor = ColorProvider(TrackColor)
-        )
-    }
-}
-
-// ─── Carga de datos unificada con Pasos, Calorías y Sueño ────────────────────
-
-suspend fun loadWidgetData(context: Context): WidgetData =
-    withContext(Dispatchers.IO) {
-        try {
-            val entryPoint = EntryPointAccessors.fromApplication(
-                context.applicationContext,
-                WidgetEntryPoint::class.java
-            )
-            val healthDao       = entryPoint.healthDao()
-            val workoutDao      = entryPoint.workoutDao()
-            val calendarDao     = entryPoint.calendarEventDao()
-            val userPreferences = entryPoint.userPreferences()
-
-            val goals = userPreferences.userGoals.first()
-
-            val today = LocalDate.now()
-            val zone  = ZoneId.systemDefault()
-            val todayMillis = today.atStartOfDay(zone).toInstant().toEpochMilli()
-            val tomorrowMillis = today.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
-
-            val health = healthDao.getHealthForDay(todayMillis) ?: healthDao.getLastNDays(1).firstOrNull()
-            val sessions = workoutDao.getRecentSessions(1)
-            val workoutToday = sessions.firstOrNull()?.let { s ->
-                Instant.ofEpochMilli(s.dateMillis).atZone(zone).toLocalDate() == today
-            } ?: false
-
-            val nextEvent = calendarDao
-                .getUpcomingEventsSnapshot(System.currentTimeMillis(), 1)
-                .firstOrNull()?.let { ev ->
-                    val dt = Instant.ofEpochMilli(ev.startTimeMillis)
-                        .atZone(zone).toLocalDateTime()
-                    val timeStr = dt.format(DateTimeFormatter.ofPattern("HH:mm"))
-                    "${ev.title} ($timeStr)"
-                }
-
-            val mealCalories = try {
-                entryPoint.mealDao().getMealsForDay(todayMillis, tomorrowMillis - 1).sumOf { it.calories.toDouble() }.toInt()
-            } catch (e: Exception) {
-                0
-            }
-
-            val steps = health?.steps ?: 0
-            val activeCal = health?.activeCalories?.toInt() ?: 0
-            val calories = if (activeCal > 0) activeCal else mealCalories
-            val sleep = (health?.sleepHours ?: 0f).let { (it * 10).toInt() / 10f }
-
-            val stepsProg = (steps.toFloat() / goals.stepsTarget).coerceIn(0f, 1f)
-            val calProg   = (calories.toFloat() / goals.activeCaloriesTarget).coerceIn(0f, 1f)
-            val sleepProg = (sleep / goals.sleepTargetHours).coerceIn(0f, 1f)
-            val vitality  = ((stepsProg * 0.35f + sleepProg * 0.35f + calProg * 0.30f) * 100).toInt()
-
-            WidgetData(
-                steps          = steps,
-                stepsTarget    = goals.stepsTarget,
-                calories       = calories,
-                caloriesTarget = goals.activeCaloriesTarget.toInt(),
-                sleepHours     = sleep,
-                sleepTarget    = goals.sleepTargetHours,
-                workoutDone    = workoutToday,
-                vitalityScore  = vitality,
-                nextEvent      = nextEvent,
-                dateString     = today.format(DateTimeFormatter.ofPattern("d MMM"))
-            )
-        } catch (e: Exception) {
-            WidgetData()
-        }
-    }
+data class WidgetData(
+    val dayScore: Int? = null,
+    val balance: Int? = null,
+    val remainingKcal: Int = 0,
+    val steps: Int = 0,
+    val stepsProgress: Float = 0f,
+    val sleepHours: Float = 0f,
+    val waterMl: Int = 0,
+    val waterTargetMl: Int = 2500,
+    val proteinG: Int = 0,
+    val proteinTargetG: Int = 0,
+)
 
 @dagger.hilt.EntryPoint
 @dagger.hilt.InstallIn(dagger.hilt.components.SingletonComponent::class)
 interface WidgetEntryPoint {
     fun healthDao(): HealthDao
-    fun workoutDao(): WorkoutDao
-    fun calendarEventDao(): CalendarEventDao
     fun mealDao(): MealDao
+    fun waterIntakeDao(): WaterIntakeDao
+    fun reminderDao(): ReminderDao
     fun userPreferences(): UserPreferencesRepository
 }
 
-data class WidgetData(
-    val steps: Int = 0,
-    val stepsTarget: Int = 10000,
-    val calories: Int = 0,
-    val caloriesTarget: Int = 2200,
-    val sleepHours: Float = 0f,
-    val sleepTarget: Float = 8.0f,
-    val workoutDone: Boolean = false,
-    val vitalityScore: Int = 0,
-    val nextEvent: String? = null,
-    val dateString: String = ""
-)
+suspend fun loadWidgetData(context: Context): WidgetData = withContext(Dispatchers.IO) {
+    try {
+        val ep = EntryPointAccessors.fromApplication(context.applicationContext, WidgetEntryPoint::class.java)
+        val g = ep.userPreferences().userGoals.first()
+        val zone = ZoneId.systemDefault()
+        val today = LocalDate.now()
+        val start = today.atStartOfDay(zone).toInstant().toEpochMilli()
+        val end = today.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli() - 1
 
-fun Int.formatK(): String = if (this >= 1000) "${this / 1000}.${(this % 1000) / 100}K" else toString()
+        val health = ep.healthDao().getHealthForDay(start)
+        val meals = ep.mealDao().getMealsForDay(start, end)
+        val intake = meals.sumOf { it.calories.toDouble() }.toFloat()
+        val protein = meals.sumOf { it.protein.toDouble() }.toFloat()
+        val water = ep.waterIntakeDao().getTotalForDay(start).first() ?: 0
+        val steps = health?.steps ?: 0
+        val sleep = health?.sleepHours ?: 0f
+
+        val bmr = EnergyCalculator.bmr(Sex.from(g.sex), g.weightKg, g.heightCm, g.ageYears)
+        val tdee = g.adaptiveTdeeKcal.takeIf { it > bmr } ?: bmr * ActivityLevel.from(g.activityLevel).factor
+        val fraction = (LocalTime.now().toSecondOfDay() / 86_400f).coerceIn(0.05f, 1f)
+        val expenditure = EnergyCalculator.expenditureForDay(bmr, tdee, health?.activeCalories ?: 0f, fraction)
+
+        WidgetData(
+            dayScore = HaloScores.dayScore(
+                DayInputs(steps, g.stepsTarget, sleep, g.sleepTargetHours, intake.takeIf { it > 0f }, g.caloriesTarget, 0, 0)
+            ),
+            balance = if (intake > 0f) (intake - expenditure).roundToInt() else null,
+            remainingKcal = (g.caloriesTarget - intake).coerceAtLeast(0f).roundToInt(),
+            steps = steps,
+            stepsProgress = if (g.stepsTarget > 0) (steps.toFloat() / g.stepsTarget).coerceIn(0f, 1f) else 0f,
+            sleepHours = sleep,
+            waterMl = water,
+            waterTargetMl = g.waterTargetMl,
+            proteinG = protein.roundToInt(),
+            proteinTargetG = g.proteinTargetGrams.roundToInt(),
+        )
+    } catch (e: Exception) {
+        WidgetData()
+    }
+}
+
+// ─── Anillo dibujado como imagen (Glance no tiene anillos de progreso) ───────
+
+private fun ringBitmap(progress: Float, sizePx: Int = 220): Bitmap {
+    val bmp = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
+    val c = android.graphics.Canvas(bmp)
+    val stroke = sizePx * 0.09f
+    val rect = RectF(stroke / 2, stroke / 2, sizePx - stroke / 2, sizePx - stroke / 2)
+    val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeWidth = stroke; strokeCap = Paint.Cap.ROUND }
+    paint.color = Line.toArgb()
+    c.drawArc(rect, 0f, 360f, false, paint)
+    if (progress > 0f) {
+        paint.color = Ion.toArgb()
+        c.drawArc(rect, -90f, 360f * progress.coerceIn(0f, 1f), false, paint)
+    }
+    return bmp
+}
+
+private fun cp(c: Color) = ColorProvider(c)
+private val es = Locale("es", "ES")
+
+@Composable
+private fun Ring(data: WidgetData, size: Int) {
+    Box(GlanceModifier.size(size.dp), contentAlignment = Alignment.Center) {
+        Image(
+            provider = ImageProvider(ringBitmap((data.dayScore ?: 0) / 100f)),
+            contentDescription = "Halo ${data.dayScore ?: 0}",
+            modifier = GlanceModifier.size(size.dp),
+        )
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(data.dayScore?.toString() ?: "—", style = TextStyle(color = cp(TextHigh), fontSize = (size / 3.4).sp, fontWeight = FontWeight.Medium))
+            Text("HALO", style = TextStyle(color = cp(TextMute), fontSize = 8.sp, fontFamily = FontFamily.Monospace))
+        }
+    }
+}
+
+private fun GlanceModifier.haloBackground(context: Context) = this
+    .fillMaxSize()
+    .background(cp(Obsidian))
+    .cornerRadius(24.dp)
+    .clickable(androidx.glance.action.actionStartActivity<MainActivity>())
+
+// ─── Widget Anillo (2x2) ─────────────────────────────────────────────────────
+
+class LifeDashboard2x2Widget : GlanceAppWidget() {
+    override suspend fun provideGlance(context: Context, id: GlanceId) {
+        val data = loadWidgetData(context)
+        provideContent {
+            Column(
+                modifier = GlanceModifier.haloBackground(context).padding(12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Ring(data, 88)
+                Spacer(GlanceModifier.height(6.dp))
+                Text("${data.remainingKcal} kcal", style = TextStyle(color = cp(TextHigh), fontSize = 13.sp, fontFamily = FontFamily.Monospace))
+                Text("te quedan", style = TextStyle(color = cp(TextMute), fontSize = 10.sp))
+            }
+        }
+    }
+}
+
+// ─── Widget Hoy (4x2) ────────────────────────────────────────────────────────
+
+class LifeDashboardWidget : GlanceAppWidget() {
+    override suspend fun provideGlance(context: Context, id: GlanceId) {
+        val data = loadWidgetData(context)
+        provideContent {
+            Row(
+                modifier = GlanceModifier.haloBackground(context).padding(14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Ring(data, 92)
+                Spacer(GlanceModifier.width(14.dp))
+                Column(GlanceModifier.defaultWeight()) {
+                    Text("BALANCE HOY", style = TextStyle(color = cp(TextMute), fontSize = 9.sp, fontFamily = FontFamily.Monospace))
+                    Text(
+                        data.balance?.let { (if (it > 0) "+" else "") + it + " kcal" } ?: "Sin comidas",
+                        style = TextStyle(color = cp(if ((data.balance ?: 0) < 0) Ion else TextHigh), fontSize = 18.sp, fontWeight = FontWeight.Medium),
+                    )
+                    Spacer(GlanceModifier.height(6.dp))
+                    MetricLine("Pasos", "%,d".format(es, data.steps), data.stepsProgress)
+                    MetricLine("Sueño", if (data.sleepHours > 0f) "%.1f h".format(es, data.sleepHours) else "—", null)
+                    MetricLine("Agua", "%.1f L".format(es, data.waterMl / 1000f), if (data.waterTargetMl > 0) data.waterMl.toFloat() / data.waterTargetMl else null)
+                    if (data.proteinTargetG > 0) MetricLine("Proteína", "${data.proteinG} g", data.proteinG.toFloat() / data.proteinTargetG)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MetricLine(label: String, value: String, progress: Float?) {
+    Column(GlanceModifier.fillMaxWidth().padding(vertical = 2.dp)) {
+        Row(GlanceModifier.fillMaxWidth()) {
+            Text(label, style = TextStyle(color = cp(TextMute), fontSize = 11.sp), modifier = GlanceModifier.defaultWeight())
+            Text(value, style = TextStyle(color = cp(TextHigh), fontSize = 11.sp, fontFamily = FontFamily.Monospace))
+        }
+        if (progress != null) {
+            LinearProgressIndicator(
+                progress = progress.coerceIn(0f, 1f),
+                modifier = GlanceModifier.fillMaxWidth().height(2.dp),
+                color = cp(Ion),
+                backgroundColor = cp(Line),
+            )
+        }
+    }
+}

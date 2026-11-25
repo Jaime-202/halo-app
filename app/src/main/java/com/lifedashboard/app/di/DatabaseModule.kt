@@ -123,6 +123,13 @@ object DatabaseModule {
         }
     }
 
+    /** v13: se eliminan los logros antiguos (los sustituyen rachas y calendario). */
+    private val MIGRATION_12_13 = object : Migration(12, 13) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("DROP TABLE IF EXISTS `achievements`")
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase =
@@ -131,7 +138,7 @@ object DatabaseModule {
             AppDatabase::class.java,
             "life_dashboard.db"
         )
-            .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12)
+            .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13)
             .fallbackToDestructiveMigration()
             .fallbackToDestructiveMigrationOnDowngrade()
             .build()
@@ -140,7 +147,6 @@ object DatabaseModule {
     @Provides fun provideWorkoutDao(db: AppDatabase): WorkoutDao = db.workoutDao()
     @Provides fun provideCalendarEventDao(db: AppDatabase): CalendarEventDao = db.calendarEventDao()
     @Provides fun provideWaterIntakeDao(db: AppDatabase): WaterIntakeDao = db.waterIntakeDao()
-    @Provides fun provideAchievementDao(db: AppDatabase): AchievementDao = db.achievementDao()
     @Provides fun provideWeightDao(db: AppDatabase): WeightDao = db.weightDao()
     @Provides fun provideMealDao(db: AppDatabase): MealDao = db.mealDao()
     @Provides fun provideReminderDao(db: AppDatabase): ReminderDao = db.reminderDao()

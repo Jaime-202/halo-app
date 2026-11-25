@@ -159,8 +159,10 @@ fun HaloHeroCard(state: DashboardUiState, n: TodayNumbers, onClick: () -> Unit) 
             Spacer(Modifier.width(18.dp))
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text("BALANCE HOY", color = TextMute, style = mono11)
+                // El número cuenta hasta su valor al abrir
+                val shown by androidx.compose.animation.core.animateIntAsState(n.balance.roundToInt(), androidx.compose.animation.core.tween(900), label = "balance")
                 Text(
-                    text = if (n.intake <= 0f) "—" else (if (n.balance > 0) "+" else "") + n.balance.roundToInt(),
+                    text = if (n.intake <= 0f) "—" else (if (shown > 0) "+" else "") + shown,
                     style = MaterialTheme.typography.headlineLarge,
                     color = if (n.balanceState == BalanceState.DEFICIT && n.intake > 0f) Ion else TextHigh,
                 )
@@ -223,7 +225,8 @@ fun HaloRings(dayScore: Int?, recovery: Int?, modifier: Modifier = Modifier) {
             ring(outerStroke + gap, innerStroke, inner.value, Flux)
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(dayScore?.toString() ?: "—", style = MaterialTheme.typography.headlineLarge, color = TextHigh)
+            val shownScore by androidx.compose.animation.core.animateIntAsState(dayScore ?: 0, androidx.compose.animation.core.tween(1100), label = "score")
+            Text(if (dayScore == null) "—" else shownScore.toString(), style = MaterialTheme.typography.headlineLarge, color = TextHigh)
             Text("HALO", color = TextMute, style = mono11)
         }
     }

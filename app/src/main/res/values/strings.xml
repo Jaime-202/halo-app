@@ -1,18 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Halo</string>
-    <string name="widget_description">Tu día de un vistazo: pasos, calorías y sueño</string>
+    <string name="widget_description">Tu día de un vistazo: Halo Score, balance y métricas</string>
 
     <!-- Widgets -->
-    <string name="widget_1x1_name">Halo - Anillo (1x1)</string>
-    <string name="widget_1x1_description">Anillo compacto con pasos, calorías y sueño</string>
+    <string name="widget_2x2_name">Halo · Anillo</string>
+    <string name="widget_2x2_description">Halo Score y calorías que te quedan</string>
 
-    <string name="widget_1x2_name">Halo - Cápsula (2x1)</string>
-    <string name="widget_1x2_description">Cápsula con pasos, calorías y sueño</string>
-
-    <string name="widget_2x2_name">Halo - Métricas (2x2)</string>
-    <string name="widget_2x2_description">Pasos, calorías activas y descanso</string>
-
-    <string name="widget_expanded_name">Halo - Completo (4x2)</string>
-    <string name="widget_expanded_description">Panel completo con métricas y agenda</string>
+    <string name="widget_expanded_name">Halo · Hoy</string>
+    <string name="widget_expanded_description">Halo Score, balance, pasos, sueño, agua y proteína</string>
 </resources>

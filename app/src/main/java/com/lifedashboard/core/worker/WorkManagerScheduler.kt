@@ -18,10 +18,9 @@ class WorkManagerScheduler @Inject constructor(
     private val workManager by lazy { WorkManager.getInstance(context) }
 
     /** Programa todos los workers si no están ya activos */
-    fun scheduleAll(symmetryFolderUri: String? = null) {
+    fun scheduleAll() {
         scheduleHealthConnectSync()
         scheduleWidgetUpdates()
-        symmetryFolderUri?.let { scheduleSymmetrySync(it) }
         scheduleAutomaticReminders()
     }
 
@@ -210,14 +209,6 @@ class WorkManagerScheduler @Inject constructor(
             WidgetUpdateWorker.WORK_NAME,
             ExistingPeriodicWorkPolicy.UPDATE,
             WidgetUpdateWorker.buildPeriodicRequest()
-        )
-    }
-
-    fun scheduleSymmetrySync(folderUri: String) {
-        workManager.enqueueUniquePeriodicWork(
-            SymmetrySyncWorker.WORK_NAME,
-            ExistingPeriodicWorkPolicy.UPDATE,  // Actualiza la URI si cambia
-            SymmetrySyncWorker.buildRequest(folderUri)
         )
     }
 
