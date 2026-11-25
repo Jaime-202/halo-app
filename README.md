@@ -190,8 +190,8 @@ app/src/main/java/com/lifedashboard/
 
 1. **Clonar el repositorio:**
    ```bash
-   git clone https://github.com/Jaime-202/halo.git
-   cd halo
+   git clone https://github.com/Jaime-202/halo-app.git
+   cd halo-app
    ```
 
 2. **Configurar el entorno local (`local.properties`):**
