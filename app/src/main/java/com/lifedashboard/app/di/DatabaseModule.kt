@@ -97,9 +97,33 @@ object DatabaseModule {
         }
     }
 
+    /**
+     * Algunas instalaciones antiguas llegaron a la v9 con otro esquema: `meals` con
+     * `isFavorite` (y su índice) en lugar de fibra, azúcar y sal, y sin `favorite_foods`
+     * ni `saved_meals`. Se deja todo como lo crea [MIGRATION_8_9] sin perder comidas.
+     */
+    internal fun repairLegacyV9(db: SupportSQLiteDatabase) {
+        val columns = mutableSetOf<String>()
+        db.query("PRAGMA table_info(`meals`)").use { c ->
+            val nameIdx = c.getColumnIndex("name")
+            while (c.moveToNext()) columns += c.getString(nameIdx)
+        }
+        if ("fiber" !in columns) {
+            db.execSQL("CREATE TABLE `meals_new` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `dateMillis` INTEGER NOT NULL, `mealType` TEXT NOT NULL, `name` TEXT NOT NULL, `brand` TEXT NOT NULL, `grams` REAL NOT NULL, `calories` REAL NOT NULL, `protein` REAL NOT NULL, `carbs` REAL NOT NULL, `fat` REAL NOT NULL, `notes` TEXT NOT NULL, `imageUrl` TEXT, `createdAt` INTEGER NOT NULL, `fiber` REAL NOT NULL DEFAULT 0, `sugar` REAL NOT NULL DEFAULT 0, `salt` REAL NOT NULL DEFAULT 0)")
+            db.execSQL("INSERT INTO `meals_new` (`id`, `dateMillis`, `mealType`, `name`, `brand`, `grams`, `calories`, `protein`, `carbs`, `fat`, `notes`, `imageUrl`, `createdAt`) SELECT `id`, `dateMillis`, `mealType`, `name`, `brand`, `grams`, `calories`, `protein`, `carbs`, `fat`, `notes`, `imageUrl`, `createdAt` FROM `meals`")
+            db.execSQL("DROP TABLE `meals`")
+            db.execSQL("ALTER TABLE `meals_new` RENAME TO `meals`")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_meals_dateMillis` ON `meals` (`dateMillis`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_meals_mealType` ON `meals` (`mealType`)")
+        }
+        db.execSQL("CREATE TABLE IF NOT EXISTS `favorite_foods` (`key` TEXT NOT NULL, `name` TEXT NOT NULL, `brand` TEXT NOT NULL, `caloriesPer100g` REAL NOT NULL, `proteinPer100g` REAL NOT NULL, `carbsPer100g` REAL NOT NULL, `fatPer100g` REAL NOT NULL, `fiberPer100g` REAL NOT NULL, `sugarPer100g` REAL NOT NULL, `saltPer100g` REAL NOT NULL, `servingSizeGrams` REAL NOT NULL, `servingDescription` TEXT NOT NULL, `imageUrl` TEXT, `barcode` TEXT, `createdAt` INTEGER NOT NULL, PRIMARY KEY(`key`))")
+        db.execSQL("CREATE TABLE IF NOT EXISTS `saved_meals` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `itemsJson` TEXT NOT NULL, `totalCalories` REAL NOT NULL, `createdAt` INTEGER NOT NULL)")
+    }
+
     /** v10: pulso en reposo y variabilidad cardiaca para la recuperación. */
     private val MIGRATION_9_10 = object : Migration(9, 10) {
         override fun migrate(db: SupportSQLiteDatabase) {
+            repairLegacyV9(db)
             db.execSQL("ALTER TABLE `health_data` ADD COLUMN `restingHeartRate` INTEGER NOT NULL DEFAULT 0")
             db.execSQL("ALTER TABLE `health_data` ADD COLUMN `hrvMs` REAL NOT NULL DEFAULT 0")
         }

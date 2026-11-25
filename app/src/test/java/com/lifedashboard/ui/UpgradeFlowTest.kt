@@ -14,6 +14,9 @@ import androidx.test.core.app.ApplicationProvider
 import com.lifedashboard.data.repository.UserPreferencesRepository
 import com.lifedashboard.presentation.MainActivity
 import kotlinx.coroutines.runBlocking
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -35,7 +38,7 @@ class UpgradeFlowTest {
     @get:Rule
     val compose = createEmptyComposeRule()
 
-    private fun seedOldInstall(context: Context) {
+    private fun seedOldInstall(context: Context, legacyV9: Boolean = false) {
         val path = context.getDatabasePath("life_dashboard.db")
         path.parentFile?.mkdirs()
         val db = SQLiteDatabase.openOrCreateDatabase(path, null)
@@ -52,7 +55,14 @@ class UpgradeFlowTest {
         }
         db.execSQL("INSERT INTO reminders (title, type, daysOfWeek, timeOfDay, iconEmoji, isEnabled, createdAt) VALUES ('Creatina', 'DIARIO', '', '09:00', '💊', 1, ${day(30)})")
         db.execSQL("INSERT INTO reminder_logs (reminderId, dateMillis, isCompleted, completedAt) VALUES (1, ${day(1)}, 1, $now)")
-        db.version = 8
+        if (legacyV9) {
+            // Esquema v9 de instalaciones antiguas: `isFavorite` en vez de fibra/azúcar/sal.
+            db.execSQL("ALTER TABLE `meals` ADD COLUMN `isFavorite` INTEGER NOT NULL DEFAULT 0")
+            db.execSQL("CREATE INDEX `index_meals_isFavorite` ON `meals` (`isFavorite`)")
+            db.version = 9
+        } else {
+            db.version = 8
+        }
         db.close()
 
         runBlocking {
@@ -78,10 +88,29 @@ class UpgradeFlowTest {
     }
 
     @Test
-    fun upgradeFromPreviousVersion() {
+    fun upgradeFromPreviousVersion() = runUpgradeFlow(legacyV9 = false)
+
+    @Test
+    fun upgradeFromLegacyV9WithIsFavorite() {
+        runUpgradeFlow(legacyV9 = true)
+        val db = SQLiteDatabase.openDatabase(
+            ApplicationProvider.getApplicationContext<Context>().getDatabasePath("life_dashboard.db").path,
+            null, SQLiteDatabase.OPEN_READONLY
+        )
+        db.use {
+            it.rawQuery("SELECT COUNT(*) FROM meals", null).use { c -> c.moveToFirst(); assertEquals(21, c.getInt(0)) }
+            it.rawQuery("PRAGMA table_info(meals)", null).use { c ->
+                val cols = buildSet { while (c.moveToNext()) add(c.getString(c.getColumnIndexOrThrow("name"))) }
+                assertTrue(cols.containsAll(listOf("fiber", "sugar", "salt")))
+                assertFalse("isFavorite" in cols)
+            }
+        }
+    }
+
+    private fun runUpgradeFlow(legacyV9: Boolean) {
         org.robolectric.shadows.ShadowLog.stream = System.out
         val context = ApplicationProvider.getApplicationContext<Context>()
-        seedOldInstall(context)
+        seedOldInstall(context, legacyV9)
         ActivityScenario.launch(MainActivity::class.java).use {
             waitFor("Empezar")
             compose.onNodeWithText("Empezar").performClick()
