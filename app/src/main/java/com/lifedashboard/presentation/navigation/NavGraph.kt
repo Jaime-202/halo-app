@@ -80,6 +80,9 @@ fun NavGraph(navController: NavHostController) {
                 }
             )
         }
+        composable(Screen.Calendar.route) {
+            com.lifedashboard.presentation.screen.calendar.CalendarScreen()
+        }
         composable(Screen.Settings.route) {
             SettingsScreen()
         }

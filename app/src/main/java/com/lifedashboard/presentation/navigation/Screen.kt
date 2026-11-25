@@ -14,6 +14,7 @@ sealed class Screen(val route: String) {
         fun createRoute(tab: String = "PASOS") = "health?tab=$tab"
     }
     data object Settings   : Screen("settings")
+    data object Calendar   : Screen("calendar")
 }
 
 data class BottomNavItem(
@@ -38,10 +39,10 @@ val bottomNavItems = listOf(
         selectedIcon = Icons.Filled.Restaurant,
     ),
     BottomNavItem(
-        screen       = Screen.Health,
-        label        = "Salud",
-        icon         = Icons.Outlined.MonitorHeart,
-        selectedIcon = Icons.Filled.MonitorHeart,
+        screen       = Screen.Calendar,
+        label        = "Calendario",
+        icon         = Icons.Outlined.CalendarMonth,
+        selectedIcon = Icons.Filled.CalendarMonth,
     ),
     BottomNavItem(
         screen       = Screen.Workout,

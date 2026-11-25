@@ -39,6 +39,9 @@ interface ReminderDao {
     suspend fun setEnabled(id: Long, enabled: Boolean)
 
     // Logs de cumplimiento diario
+    @Query("SELECT * FROM reminder_logs WHERE dateMillis >= :fromMillis AND dateMillis <= :toMillis")
+    fun observeLogsInRange(fromMillis: Long, toMillis: Long): Flow<List<ReminderLogEntity>>
+
     @Query("SELECT * FROM reminder_logs WHERE dateMillis = :dateMillis")
     fun observeLogsForDate(dateMillis: Long): Flow<List<ReminderLogEntity>>
 

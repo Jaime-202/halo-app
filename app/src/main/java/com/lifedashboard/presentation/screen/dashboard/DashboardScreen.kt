@@ -179,22 +179,6 @@ fun DashboardContent(
                 onAddWeight    = onAddWeightClick
             )
 
-            // 3. Calendario de Actividad y consistencia
-            SectionTitle("Calendario de Hábitos")
-            CalendarView(
-                progressByDate = state.progressByDate,
-                selectedDate   = state.selectedDate,
-                onDateSelected = onSelectDate
-            )
-
-            // 4. Detalle del día seleccionado
-            SelectedDayDetailCard(
-                selectedDate        = state.selectedDate,
-                progress            = state.progressByDate[state.selectedDate],
-                onNavigateToHealth  = onNavigateToHealth,
-                onNavigateToWorkout = onNavigateToWorkout
-            )
-
             // 5. Próximos Eventos - controlado por preferencia
             if (state.showUpcomingEvents) {
                 SectionTitle("Próximos Eventos")
