@@ -66,7 +66,12 @@ data class DashboardUiState(
     val showAddWeightDialog: Boolean = false,
     val workoutDaysTarget: Int = 4,
     val weeklyWorkoutsCount: Int = 0,
-    val todayReminders: List<DashboardReminderItem> = emptyList()
+    val todayReminders: List<DashboardReminderItem> = emptyList(),
+    // Energía (perfil Halo)
+    val bmrKcal: Float = 0f,
+    val tdeeKcal: Float = 0f,
+    val intakeTargetKcal: Float = 0f,
+    val tdeeIsAdaptive: Boolean = false
 )
 
 @HiltViewModel
@@ -79,7 +84,8 @@ class DashboardViewModel @Inject constructor(
     private val calendarRepository: CalendarRepository,
     private val geminiService: GeminiApiService,
     private val evaluateAchievements: EvaluateRoutineAchievementUseCase,
-    private val userPreferences: UserPreferencesRepository
+    private val userPreferences: UserPreferencesRepository,
+    private val energyTargets: com.lifedashboard.data.repository.EnergyTargetsManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DashboardUiState())
@@ -99,6 +105,7 @@ class DashboardViewModel @Inject constructor(
     private fun observeUserGoals() {
         userPreferences.userGoals
             .onEach { goals ->
+                val energy = energyTargets.targetsFor(goals)
                 _uiState.update { state ->
                     val stepsProg = if (goals.stepsTarget > 0) (state.todaySteps.toFloat() / goals.stepsTarget).coerceIn(0f, 1f) else 0f
                     val sleepProg = if (goals.sleepTargetHours > 0) (state.todaySleepHours / goals.sleepTargetHours).coerceIn(0f, 1f) else 0f
@@ -118,7 +125,11 @@ class DashboardViewModel @Inject constructor(
                         showHeroRings      = goals.showHeroRings,
                         showAiInsight      = goals.showAiInsight,
                         showUpcomingEvents = goals.showUpcomingEvents,
-                        userHeightCm       = goals.heightCm
+                        userHeightCm       = goals.heightCm,
+                        bmrKcal            = energy.bmrKcal,
+                        tdeeKcal           = energy.tdeeKcal,
+                        intakeTargetKcal   = goals.caloriesTarget,
+                        tdeeIsAdaptive     = energy.isAdaptive
                     )
                 }
             }

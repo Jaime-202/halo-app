@@ -121,6 +121,8 @@ class SettingsViewModel @Inject constructor(
     private val weightDao: WeightDao,
     private val reminderDao: ReminderDao,
     private val foodAiService: com.lifedashboard.data.remote.food.FoodAiService,
+    private val energyTargets: com.lifedashboard.data.repository.EnergyTargetsManager,
+    private val backupManager: com.lifedashboard.data.backup.BackupManager,
     @dagger.hilt.android.qualifiers.ApplicationContext private val context: Context
 ) : ViewModel() {
     private val _state = MutableStateFlow(SettingsState())
@@ -134,17 +136,9 @@ class SettingsViewModel @Inject constructor(
                     "MIDNIGHT", "SISTEMA" -> ThemeMode.MIDNIGHT
                     else      -> ThemeMode.OSCURO
                 }
-                val validW = if (goals.weightKg > 30f) goals.weightKg else 75f
-                val validH = if (goals.heightCm > 100) goals.heightCm else 175
-                val bmr = (10f * validW) + (6.25f * validH) - (5f * 25f) + 5f
-                val activityMult = when (goals.fitnessLevel) {
-                    "PRINCIPIANTE" -> 1.25f
-                    "INTERMEDIO"   -> 1.375f
-                    "AVANZADO"     -> 1.55f
-                    "ATLETA"       -> 1.725f
-                    else           -> 1.35f
-                }
-                val tdee = bmr * activityMult
+                val targets = energyTargets.targetsFor(goals)
+                val bmr = targets.bmrKcal
+                val tdee = targets.tdeeKcal
 
                 _state.value = _state.value.copy(
                     userName             = goals.userName,
@@ -244,26 +238,8 @@ class SettingsViewModel @Inject constructor(
                 height = currentHeight
             )
 
-            // Recalcular calorías y macros automáticamente basados en el nuevo peso
-            val validHeight = if (currentHeight > 100) currentHeight else 175
-            val bmr = (10f * weight) + (6.25f * validHeight) - (5f * 25f) + 5f
-            val tdee = bmr * 1.35f
-            val targetCalories = when (currentGoal) {
-                "PERDIDA_PESO", "GRASA" -> (tdee - 450f).coerceAtLeast(1400f)
-                "VOLUMEN", "MUSCULO" -> tdee + 300f
-                else -> tdee
-            }
-            val protein = (weight * 2.0f).coerceIn(90f, 240f)
-            val fat = (weight * 0.85f).coerceIn(40f, 110f)
-            val remainingKcal = targetCalories - (protein * 4f + fat * 9f)
-            val carbs = (remainingKcal / 4f).coerceAtLeast(50f)
-
-            userPreferences.updateCalorieAndMacroTargets(
-                calories = targetCalories,
-                protein = protein,
-                carbs = carbs,
-                fat = fat
-            )
+            // Recalcular calorías y macros (incluye TDEE adaptativo con el nuevo pesaje)
+            energyTargets.recalculate()
             com.lifedashboard.core.worker.WidgetUpdateWorker.updateAllWidgets(context)
         }
     }
@@ -279,27 +255,7 @@ class SettingsViewModel @Inject constructor(
             if (name.isNotBlank()) userPreferences.updateUserName(name.trim())
             userPreferences.updateFitnessProfile(level, goal, weight, height)
 
-            // Cálculo automático de calorías y macronutrientes según Mifflin-St Jeor y objetivo (pérdida grasa / volumen / mant.)
-            val validWeight = if (weight > 30f) weight else 75f
-            val validHeight = if (height > 100) height else 175
-            val bmr = (10f * validWeight) + (6.25f * validHeight) - (5f * 25f) + 5f
-            val tdee = bmr * 1.35f
-            val targetCalories = when (goal) {
-                "PERDIDA_PESO", "GRASA" -> (tdee - 450f).coerceAtLeast(1400f)
-                "VOLUMEN", "MUSCULO" -> tdee + 300f
-                else -> tdee
-            }
-            val protein = (validWeight * 2.0f).coerceIn(90f, 240f)
-            val fat = (validWeight * 0.85f).coerceIn(40f, 110f)
-            val remainingKcal = targetCalories - (protein * 4f + fat * 9f)
-            val carbs = (remainingKcal / 4f).coerceAtLeast(50f)
-
-            userPreferences.updateCalorieAndMacroTargets(
-                calories = targetCalories,
-                protein = protein,
-                carbs = carbs,
-                fat = fat
-            )
+            energyTargets.recalculate()
             com.lifedashboard.core.worker.WidgetUpdateWorker.updateAllWidgets(context)
         }
     }
@@ -491,6 +447,53 @@ class SettingsViewModel @Inject constructor(
         Toast.makeText(context, "Sincronizando fuentes de datos…", Toast.LENGTH_SHORT).show()
     }
 
+    // ─── Copia de seguridad y exportación ─────────────────────────────────────
+
+    fun backupFileName() = backupManager.suggestedBackupName()
+    fun csvFileName() = backupManager.suggestedCsvName()
+
+    fun createBackup(uri: android.net.Uri, password: String) {
+        viewModelScope.launch {
+            val msg = try {
+                backupManager.createBackup(uri, password.toCharArray())
+                "Copia cifrada guardada"
+            } catch (e: Exception) {
+                "No se pudo guardar la copia: ${e.message}"
+            }
+            Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+        }
+    }
+
+    fun restoreBackup(uri: android.net.Uri, password: String) {
+        viewModelScope.launch {
+            try {
+                backupManager.restoreBackup(uri, password.toCharArray())
+                Toast.makeText(context, "Copia restaurada. Reiniciando Halo…", Toast.LENGTH_SHORT).show()
+                kotlinx.coroutines.delay(800)
+                backupManager.restartApp()
+            } catch (e: Exception) {
+                Toast.makeText(context, e.message ?: "No se pudo restaurar la copia", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    fun exportCsv(uri: android.net.Uri) {
+        viewModelScope.launch {
+            val msg = try {
+                backupManager.exportCsv(uri)
+                "Datos exportados en CSV"
+            } catch (e: Exception) {
+                "No se pudo exportar: ${e.message}"
+            }
+            Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+        }
+    }
+
+    /** Vuelve a mostrar la bienvenida para cambiar sexo, edad, actividad u objetivo. */
+    fun redoEnergyProfile() {
+        viewModelScope.launch { userPreferences.setOnboardingCompleted(false) }
+    }
+
     fun exportData(context: Context) {
         val summary = """
             {
@@ -587,6 +590,19 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
     var reminderToEdit by remember { mutableStateOf<ReminderEntity?>(null) }
 
     var showWaterModal by remember { mutableStateOf(false) }
+
+    // Copia de seguridad: primero se pide la contraseña y después dónde guardar / qué abrir
+    var backupPasswordMode by remember { mutableStateOf<String?>(null) } // "CREAR" | "RESTAURAR"
+    var pendingPassword by remember { mutableStateOf("") }
+    val createBackupLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/octet-stream")
+    ) { uri -> if (uri != null) viewModel.createBackup(uri, pendingPassword); pendingPassword = "" }
+    val restoreBackupLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri -> if (uri != null) viewModel.restoreBackup(uri, pendingPassword); pendingPassword = "" }
+    val exportCsvLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/zip")
+    ) { uri -> if (uri != null) viewModel.exportCsv(uri) }
     var showResetConfirmDialog by remember { mutableStateOf(false) }
 
     val healthPermissions = setOf(
@@ -1170,19 +1186,67 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
             }
         }
 
+        // ─── Perfil energético ─────────────────────────────────────────────
+        SectionHeader("Calorías")
+        SettingsCard {
+            SettingsItem(
+                icon      = Icons.Default.LocalFireDepartment,
+                iconColor = Ion,
+                title     = "Mis datos para calcular calorías",
+                subtitle  = "Gasto diario ${state.tdeeKcal.toInt()} kcal · basal ${state.bmrKcal.toInt()} kcal",
+                trailing  = {
+                    OutlinedButton(
+                        onClick = { viewModel.redoEnergyProfile() },
+                        colors  = ButtonDefaults.outlinedButtonColors(contentColor = Ion),
+                        border  = BorderStroke(1.dp, Ion),
+                        shape   = RoundedCornerShape(8.dp),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                        modifier = Modifier.height(30.dp)
+                    ) { Text("Editar", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold) }
+                }
+            )
+        }
+
         // ─── Gestión de Datos & Privacidad ─────────────────────────────────
         SectionHeader("Datos & Privacidad")
         SettingsCard {
             SettingsItem(
+                icon      = Icons.Default.Lock,
+                iconColor = Ion,
+                title     = "Copia de seguridad cifrada",
+                subtitle  = "Guárdala en Google Drive o donde quieras, protegida con contraseña",
+                trailing  = {
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        OutlinedButton(
+                            onClick = { backupPasswordMode = "RESTAURAR" },
+                            colors  = ButtonDefaults.outlinedButtonColors(contentColor = TextMute),
+                            border  = BorderStroke(1.dp, LineStrong),
+                            shape   = RoundedCornerShape(8.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                            modifier = Modifier.height(30.dp)
+                        ) { Text("Restaurar", style = MaterialTheme.typography.labelSmall) }
+                        OutlinedButton(
+                            onClick = { backupPasswordMode = "CREAR" },
+                            colors  = ButtonDefaults.outlinedButtonColors(contentColor = Ion),
+                            border  = BorderStroke(1.dp, Ion),
+                            shape   = RoundedCornerShape(8.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                            modifier = Modifier.height(30.dp)
+                        ) { Text("Crear", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold) }
+                    }
+                }
+            )
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            SettingsItem(
                 icon      = Icons.Default.Share,
-                iconColor = Cyan400,
-                title     = "Exportar Resumen Biométrico",
-                subtitle  = "Copia de seguridad en formato JSON estructurado",
+                iconColor = Flux,
+                title     = "Exportar a CSV",
+                subtitle  = "Pesos, comidas y salud para Excel o Sheets",
                 trailing  = {
                     OutlinedButton(
-                        onClick = { viewModel.exportData(context) },
-                        colors  = ButtonDefaults.outlinedButtonColors(contentColor = Cyan400),
-                        border  = BorderStroke(1.dp, Cyan400),
+                        onClick = { exportCsvLauncher.launch(viewModel.csvFileName()) },
+                        colors  = ButtonDefaults.outlinedButtonColors(contentColor = Flux),
+                        border  = BorderStroke(1.dp, Flux),
                         shape   = RoundedCornerShape(8.dp),
                         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
                         modifier = Modifier.height(30.dp)
@@ -1234,14 +1298,27 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
             SettingsItem(
                 icon      = Icons.Default.Info,
                 iconColor = Gray400,
-                title     = "Life Dashboard",
-                subtitle  = "v1.4 · Dashboard Biométrico y Hábitos",
+                title     = "Halo",
+                subtitle  = "v2.0 · Tu día, tu historial y tu comida",
                 trailing  = {}
             )
         }
     }
 
     // ─── Modales ──────────────────────────────────────────────────────────
+
+    backupPasswordMode?.let { mode ->
+        BackupPasswordDialog(
+            creating  = mode == "CREAR",
+            onDismiss = { backupPasswordMode = null },
+            onConfirm = { password ->
+                pendingPassword = password
+                backupPasswordMode = null
+                if (mode == "CREAR") createBackupLauncher.launch(viewModel.backupFileName())
+                else restoreBackupLauncher.launch(arrayOf("*/*"))
+            }
+        )
+    }
 
     if (showProfileModal) {
         EnhancedProfileModal(
@@ -3601,5 +3678,65 @@ private fun ResetDefaultsDialog(
                 Text("Cancelar", color = Gray400)
             }
         }
+    )
+}
+
+
+// ─── Diálogo de contraseña para la copia cifrada ─────────────────────────────
+
+@Composable
+private fun BackupPasswordDialog(
+    creating: Boolean,
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit,
+) {
+    var password by remember { mutableStateOf("") }
+    var repeat by remember { mutableStateOf("") }
+    val tooShort = password.length < 6
+    val mismatch = creating && repeat != password
+    val valid = !tooShort && !mismatch
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Panel,
+        title = { Text(if (creating) "Crear copia cifrada" else "Restaurar copia", color = TextHigh) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    if (creating)
+                        "Elige una contraseña. Sin ella no se puede abrir la copia, ni siquiera desde Halo: apúntala en un sitio seguro."
+                    else
+                        "Escribe la contraseña de la copia. Los datos actuales se sustituirán por los de la copia.",
+                    color = TextMute,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    label = { Text("Contraseña") },
+                    singleLine = true,
+                    visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                    supportingText = { if (password.isNotEmpty() && tooShort) Text("Mínimo 6 caracteres") },
+                )
+                if (creating) {
+                    OutlinedTextField(
+                        value = repeat,
+                        onValueChange = { repeat = it },
+                        label = { Text("Repite la contraseña") },
+                        singleLine = true,
+                        visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                        supportingText = { if (repeat.isNotEmpty() && mismatch) Text("No coinciden") },
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(password) }, enabled = valid) {
+                Text(if (creating) "Elegir dónde guardar" else "Elegir archivo", color = if (valid) Ion else TextDim)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancelar", color = TextMute) }
+        },
     )
 }

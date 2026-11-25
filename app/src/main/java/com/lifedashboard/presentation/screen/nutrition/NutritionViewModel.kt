@@ -422,21 +422,36 @@ class NutritionViewModel @Inject constructor(
         _uiState.update { it.copy(showCalculatorDialog = visible) }
     }
 
+    /** Últimos datos de perfil (sexo, edad, actividad) para la calculadora. */
+    private var energyGoals = com.lifedashboard.data.repository.UserGoals()
+
+    init {
+        viewModelScope.launch { userPreferences.userGoals.collect { energyGoals = it } }
+    }
+
     fun calculateIntake(weightKg: Float, heightCm: Int, goal: String): CalculatedIntake {
-        // Fórmula de Mifflin-St Jeor
-        val bmr = (10f * weightKg) + (6.25f * heightCm) - (5f * 25f) + 5f
-        val tdee = bmr * 1.35f // Factor de actividad moderada habitual
-
-        val targetCalories = when (goal) {
-            "PERDIDA_PESO", "GRASA" -> (tdee - 450f).coerceAtLeast(1400f)
-            "VOLUMEN", "MUSCULO" -> tdee + 300f
-            else -> tdee
+        val weightGoal = when (goal) {
+            "PERDIDA_PESO", "GRASA" -> com.lifedashboard.domain.energy.WeightGoal.PERDER_RAPIDO
+            "VOLUMEN", "MUSCULO" -> com.lifedashboard.domain.energy.WeightGoal.GANAR
+            else -> com.lifedashboard.domain.energy.WeightGoal.MANTENER
         }
-
-        val protein = (weightKg * 2.0f).coerceIn(90f, 240f)
-        val fat = (weightKg * 0.85f).coerceIn(40f, 110f)
-        val remainingKcal = targetCalories - (protein * 4f + fat * 9f)
-        val carbs = (remainingKcal / 4f).coerceAtLeast(50f)
+        val profile = com.lifedashboard.domain.energy.EnergyProfile(
+            sex = com.lifedashboard.domain.energy.Sex.from(energyGoals.sex),
+            ageYears = energyGoals.ageYears,
+            heightCm = heightCm,
+            weightKg = weightKg,
+            activity = com.lifedashboard.domain.energy.ActivityLevel.from(energyGoals.activityLevel),
+            goal = weightGoal,
+        )
+        val t = com.lifedashboard.domain.energy.EnergyCalculator.targets(
+            profile, energyGoals.adaptiveTdeeKcal.takeIf { it > 0f }
+        )
+        val targetCalories = t.caloriesKcal
+        val protein = t.proteinG
+        val fat = t.fatG
+        val carbs = t.carbsG
+        val bmr = t.bmrKcal
+        val tdee = t.tdeeKcal
 
         return CalculatedIntake(
             calories = targetCalories,

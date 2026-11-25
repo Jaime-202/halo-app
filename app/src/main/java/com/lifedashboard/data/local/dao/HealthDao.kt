@@ -40,4 +40,7 @@ interface HealthDao {
 
     @Query("DELETE FROM health_data WHERE dateMillis < :cutoffMillis")
     suspend fun deleteOlderThan(cutoffMillis: Long)
+
+    @Query("SELECT * FROM health_data ORDER BY dateMillis ASC")
+    suspend fun getAll(): List<HealthDataEntity>
 }

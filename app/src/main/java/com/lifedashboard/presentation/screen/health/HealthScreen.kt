@@ -53,6 +53,7 @@ data class HealthUiState(
     val stepsTarget: Int = 10000,
     val sleepTarget: Float = 8.0f,
     val caloriesTarget: Int = 500, // Meta de calorías activas quemadas
+    val bmrKcal: Int = 1650,       // Metabolismo basal según tu perfil
     val isSyncing: Boolean = false
 )
 
@@ -80,7 +81,11 @@ class HealthViewModel @Inject constructor(
                     it.copy(
                         stepsTarget    = goals.stepsTarget,
                         sleepTarget    = goals.sleepTargetHours,
-                        caloriesTarget = goals.activeCaloriesTarget.toInt()
+                        caloriesTarget = goals.activeCaloriesTarget.toInt(),
+                        bmrKcal = com.lifedashboard.domain.energy.EnergyCalculator.bmr(
+                            com.lifedashboard.domain.energy.Sex.from(goals.sex),
+                            goals.weightKg, goals.heightCm, goals.ageYears
+                        ).toInt()
                     )
                 }
             }
@@ -477,7 +482,7 @@ private fun CaloriasSubSection(state: HealthUiState) {
     val todaySteps = todayEntity?.steps ?: 0
     val todayCal = (if (rawCal > 0f) rawCal else todaySteps * 0.04f).toInt()
     val progress = (todayCal.toFloat() / state.caloriesTarget).coerceIn(0f, 1f)
-    val bmr = 1650
+    val bmr = state.bmrKcal
     val totalExpenditure = bmr + todayCal
     val avgCal = if (state.last14Days.isNotEmpty()) {
         state.last14Days.map { if (it.activeCalories > 0f) it.activeCalories else it.steps * 0.04f }.average().toInt()

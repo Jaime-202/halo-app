@@ -24,4 +24,10 @@ interface WeightDao {
 
     @Query("DELETE FROM weight_entries WHERE id = :id")
     suspend fun deleteById(id: Long)
+
+    @Query("SELECT * FROM weight_entries WHERE dateMillis >= :startMillis ORDER BY dateMillis ASC")
+    suspend fun getWeightsSince(startMillis: Long): List<WeightEntryEntity>
+
+    @Query("SELECT * FROM weight_entries ORDER BY dateMillis ASC")
+    suspend fun getAllWeights(): List<WeightEntryEntity>
 }

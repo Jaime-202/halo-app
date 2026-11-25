@@ -30,4 +30,10 @@ interface MealDao {
 
     @Query("SELECT * FROM meals ORDER BY createdAt DESC LIMIT :limit")
     fun observeRecentMeals(limit: Int = 50): Flow<List<MealEntryEntity>>
+
+    @Query("SELECT * FROM meals WHERE dateMillis >= :startMillis AND dateMillis <= :endMillis ORDER BY dateMillis ASC")
+    suspend fun getMealsBetween(startMillis: Long, endMillis: Long): List<MealEntryEntity>
+
+    @Query("SELECT * FROM meals ORDER BY dateMillis ASC")
+    suspend fun getAllMeals(): List<MealEntryEntity>
 }

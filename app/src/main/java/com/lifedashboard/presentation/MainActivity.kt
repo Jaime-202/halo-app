@@ -28,6 +28,7 @@ import com.lifedashboard.presentation.theme.*
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
@@ -36,6 +37,7 @@ class MainActivity : ComponentActivity() {
 
     @Inject lateinit var workManagerScheduler: WorkManagerScheduler
     @Inject lateinit var userPreferences: com.lifedashboard.data.repository.UserPreferencesRepository
+    @Inject lateinit var energyTargets: com.lifedashboard.data.repository.EnergyTargetsManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -45,10 +47,22 @@ class MainActivity : ComponentActivity() {
         workManagerScheduler.scheduleAll()
         workManagerScheduler.runHealthSyncNow()
 
+        // Refrescar el gasto adaptativo y los objetivos con los datos más recientes
+        lifecycleScope.launch(Dispatchers.IO) {
+            if (userPreferences.userGoals.first().onboardingCompleted) energyTargets.recalculate()
+        }
+
         setContent {
-            val goals by userPreferences.userGoals.collectAsState(initial = com.lifedashboard.data.repository.UserGoals())
-            LifeDashboardTheme(themeMode = goals.themeMode) {
-                LifeDashboardApp()
+            // null hasta leer las preferencias, para no mostrar la bienvenida por error
+            val goals by userPreferences.userGoals.collectAsState(initial = null as com.lifedashboard.data.repository.UserGoals?)
+            LifeDashboardTheme(themeMode = goals?.themeMode ?: "OSCURO") {
+                val loaded = goals
+                when {
+                    loaded == null -> Box(Modifier.fillMaxSize().background(Obsidian))
+                    !loaded.onboardingCompleted ->
+                        com.lifedashboard.presentation.screen.onboarding.OnboardingScreen()
+                    else -> LifeDashboardApp()
+                }
             }
         }
     }

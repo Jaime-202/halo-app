@@ -44,7 +44,14 @@ data class UserGoals(
     val proteinTargetGrams: Float = 140f,
     val carbsTargetGrams: Float = 250f,
     val fatTargetGrams: Float = 70f,
-    val waterTargetMl: Int = 2500
+    val waterTargetMl: Int = 2500,
+    // Perfil energético (Halo)
+    val sex: String = "HOMBRE",                    // "HOMBRE" | "MUJER"
+    val ageYears: Int = 30,
+    val activityLevel: String = "MODERADO",        // ver ActivityLevel
+    val weightGoal: String = "MANTENER",           // ver WeightGoal
+    val adaptiveTdeeKcal: Float = 0f,              // 0 = sin datos suficientes
+    val onboardingCompleted: Boolean = false
 )
 
 @Singleton
@@ -83,6 +90,12 @@ class UserPreferencesRepository @Inject constructor(
         val CARBS_TARGET           = floatPreferencesKey("carbs_target")
         val FAT_TARGET             = floatPreferencesKey("fat_target")
         val WATER_TARGET_ML        = intPreferencesKey("water_target_ml")
+        val SEX                    = stringPreferencesKey("sex")
+        val AGE_YEARS              = intPreferencesKey("age_years")
+        val ACTIVITY_LEVEL         = stringPreferencesKey("activity_level")
+        val WEIGHT_GOAL            = stringPreferencesKey("weight_goal")
+        val ADAPTIVE_TDEE          = floatPreferencesKey("adaptive_tdee")
+        val ONBOARDING_DONE        = booleanPreferencesKey("onboarding_done")
     }
 
     val userGoals: Flow<UserGoals> = context.dataStore.data
@@ -125,7 +138,13 @@ class UserPreferencesRepository @Inject constructor(
                 proteinTargetGrams   = prefs[Keys.PROTEIN_TARGET] ?: 140f,
                 carbsTargetGrams     = prefs[Keys.CARBS_TARGET] ?: 250f,
                 fatTargetGrams       = prefs[Keys.FAT_TARGET] ?: 70f,
-                waterTargetMl        = prefs[Keys.WATER_TARGET_ML] ?: 2500
+                waterTargetMl        = prefs[Keys.WATER_TARGET_ML] ?: 2500,
+                sex                  = prefs[Keys.SEX] ?: "HOMBRE",
+                ageYears             = prefs[Keys.AGE_YEARS] ?: 30,
+                activityLevel        = prefs[Keys.ACTIVITY_LEVEL] ?: "MODERADO",
+                weightGoal           = prefs[Keys.WEIGHT_GOAL] ?: "MANTENER",
+                adaptiveTdeeKcal     = prefs[Keys.ADAPTIVE_TDEE] ?: 0f,
+                onboardingCompleted  = prefs[Keys.ONBOARDING_DONE] ?: false
             )
         }
 
@@ -160,6 +179,14 @@ class UserPreferencesRepository @Inject constructor(
     suspend fun updateFitnessProfile(level: String, goal: String, weight: Float, height: Int) {
         context.dataStore.edit { prefs ->
             prefs[Keys.FITNESS_LEVEL] = level
+            // Si cambia el objetivo desde la pantalla antigua, traducirlo al objetivo de peso
+            if (prefs[Keys.PRIMARY_GOAL] != goal) {
+                prefs[Keys.WEIGHT_GOAL] = when (goal) {
+                    "GRASA", "PERDIDA_PESO" -> "PERDER_RAPIDO"
+                    "MUSCULO", "VOLUMEN" -> "GANAR"
+                    else -> "MANTENER"
+                }
+            }
             prefs[Keys.PRIMARY_GOAL] = goal
             prefs[Keys.WEIGHT_KG] = weight
             prefs[Keys.HEIGHT_CM] = height
@@ -250,6 +277,41 @@ class UserPreferencesRepository @Inject constructor(
         context.dataStore.edit { prefs ->
             prefs[Keys.WEIGHT_KG] = weightKg
         }
+    }
+
+    /** Guarda el perfil energético completo (bienvenida o edición desde Ajustes). */
+    suspend fun updateEnergyProfile(
+        name: String,
+        sex: String,
+        ageYears: Int,
+        heightCm: Int,
+        weightKg: Float,
+        activityLevel: String,
+        weightGoal: String,
+    ) {
+        context.dataStore.edit { prefs ->
+            if (name.isNotBlank()) prefs[Keys.USER_NAME] = name.trim()
+            prefs[Keys.SEX] = sex
+            prefs[Keys.AGE_YEARS] = ageYears
+            prefs[Keys.HEIGHT_CM] = heightCm
+            prefs[Keys.WEIGHT_KG] = weightKg
+            prefs[Keys.ACTIVITY_LEVEL] = activityLevel
+            prefs[Keys.WEIGHT_GOAL] = weightGoal
+            // Mantener el objetivo antiguo en sintonía para las pantallas que aún lo leen
+            prefs[Keys.PRIMARY_GOAL] = when (weightGoal) {
+                "PERDER", "PERDER_RAPIDO" -> "GRASA"
+                "GANAR" -> "MUSCULO"
+                else -> "SALUD_GENERAL"
+            }
+        }
+    }
+
+    suspend fun updateAdaptiveTdee(kcal: Float) {
+        context.dataStore.edit { prefs -> prefs[Keys.ADAPTIVE_TDEE] = kcal }
+    }
+
+    suspend fun setOnboardingCompleted(done: Boolean) {
+        context.dataStore.edit { prefs -> prefs[Keys.ONBOARDING_DONE] = done }
     }
 
     suspend fun updateWaterTarget(targetMl: Int) {

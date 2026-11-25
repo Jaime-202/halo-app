@@ -133,6 +133,11 @@ fun DashboardContent(
                 onNavigateToWorkout = onNavigateToWorkout
             )
 
+            // Balance de energía del día: comido frente a gastado
+            if (state.bmrKcal > 0f) {
+                EnergyBalanceCard(state = state, onClick = onNavigateToNutrition)
+            }
+
             // Tarjeta de Acceso a Nutrición & Comidas
             Box(
                 modifier = Modifier
@@ -1039,5 +1044,113 @@ private fun DashboardAddWeightModal(
                 }
             }
         }
+    }
+}
+
+
+// ─── Balance de energía ───────────────────────────────────────────────────────
+
+/**
+ * Comido frente a gastado hoy. El gasto es el basal proporcional a la hora del día
+ * más las calorías activas de Health Connect (o el TDEE estimado si no hay datos).
+ */
+@Composable
+private fun EnergyBalanceCard(state: DashboardUiState, onClick: () -> Unit) {
+    val now = java.time.LocalTime.now()
+    val dayFraction = (now.toSecondOfDay() / 86_400f).coerceIn(0.05f, 1f)
+    val expenditure = com.lifedashboard.domain.energy.EnergyCalculator.expenditureForDay(
+        bmrKcal = state.bmrKcal,
+        tdeeKcal = state.tdeeKcal,
+        activeKcal = state.todayCalories,
+        dayFraction = dayFraction,
+    )
+    val intake = state.todayMealsCalories
+    val balance = com.lifedashboard.domain.energy.EnergyCalculator.balance(intake, expenditure)
+    val balanceState = com.lifedashboard.domain.energy.EnergyCalculator.balanceState(balance)
+    val label = when (balanceState) {
+        com.lifedashboard.domain.energy.BalanceState.DEFICIT -> "En déficit"
+        com.lifedashboard.domain.energy.BalanceState.SUPERAVIT -> "En superávit"
+        com.lifedashboard.domain.energy.BalanceState.MANTENIMIENTO -> "En mantenimiento"
+    }
+    val remaining = (state.intakeTargetKcal - intake).coerceAtLeast(0f)
+    val shape = RoundedCornerShape(22.dp)
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(Panel)
+            .border(1.dp, Line, shape)
+            .clickable(onClick = onClick)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+            Column {
+                Text(
+                    "BALANCE HOY",
+                    color = TextMute,
+                    style = androidx.compose.ui.text.TextStyle(fontFamily = MonoFamily, fontSize = 11.sp, letterSpacing = 1.2.sp),
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = (if (balance > 0) "+" else "") + balance.toInt().toString(),
+                    style = MaterialTheme.typography.headlineMedium,
+                    // Registro sin juicio: el superávit no se pinta en rojo
+                    color = if (balanceState == com.lifedashboard.domain.energy.BalanceState.DEFICIT) Ion else TextHigh,
+                )
+                Text("kcal · $label", color = TextMute, style = MaterialTheme.typography.bodySmall)
+            }
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    "${remaining.toInt()} kcal",
+                    style = androidx.compose.ui.text.TextStyle(fontFamily = MonoFamily, fontSize = 14.sp),
+                    color = TextHigh,
+                )
+                Text("te quedan por comer", color = TextMute, style = MaterialTheme.typography.bodySmall)
+            }
+        }
+
+        val total = maxOf(intake, expenditure, 1f)
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            BalanceBar("Comido", intake, total, Flux)
+            BalanceBar("Gastado", expenditure, total, Ion)
+        }
+        if (state.tdeeIsAdaptive) {
+            Text(
+                "Gasto calculado con tus datos reales de peso y comida",
+                color = TextDim,
+                style = MaterialTheme.typography.labelSmall,
+            )
+        }
+    }
+}
+
+@Composable
+private fun BalanceBar(label: String, value: Float, max: Float, color: androidx.compose.ui.graphics.Color) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+        Text(label, color = TextMute, style = MaterialTheme.typography.labelSmall, modifier = Modifier.width(64.dp))
+        Box(
+            Modifier
+                .weight(1f)
+                .height(4.dp)
+                .clip(RoundedCornerShape(2.dp))
+                .background(Line)
+        ) {
+            Box(
+                Modifier
+                    .fillMaxWidth((value / max).coerceIn(0f, 1f))
+                    .fillMaxHeight()
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(color)
+            )
+        }
+        Text(
+            "${value.toInt()}",
+            color = TextHigh,
+            style = androidx.compose.ui.text.TextStyle(fontFamily = MonoFamily, fontSize = 12.sp),
+            modifier = Modifier.width(52.dp),
+            textAlign = androidx.compose.ui.text.style.TextAlign.End,
+        )
     }
 }
