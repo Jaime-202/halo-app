@@ -19,5 +19,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "LifeDashboard"
+rootProject.name = "Halo"
 include(":app")
