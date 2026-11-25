@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Halo: anillo de progreso (3/4) con degradado Ion → Flux y punto de inicio.
+     Todo dentro de la zona segura de 66dp del icono adaptativo. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
@@ -6,39 +8,33 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Halo circular exterior sutil -->
+    <!-- Pista del anillo -->
     <path
-        android:pathData="M54,20 A34,34 0 1,1 53.99,20 Z"
-        android:strokeWidth="1.5"
-        android:strokeColor="#339B6DFF"
-        android:fillColor="@android:color/transparent" />
+        android:pathData="M54,28 A26,26 0 1,1 53.99,28"
+        android:strokeWidth="7"
+        android:strokeColor="#1B222B"
+        android:fillColor="#00000000" />
 
-    <!-- Glifo "V" Biométrico con Onda de Pulso Vital -->
+    <!-- Progreso: 3/4 de vuelta en sentido horario desde arriba -->
     <path
-        android:pathData="M34,36 L46,68 L54,44 L60,58 L64,48 L74,48"
-        android:strokeWidth="5.5"
+        android:pathData="M54,28 A26,26 0 1,1 28,54"
+        android:strokeWidth="7"
         android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:fillColor="@android:color/transparent">
+        android:fillColor="#00000000">
         <aapt:attr name="android:strokeColor">
             <gradient
                 android:type="linear"
-                android:startX="34"
-                android:startY="36"
-                android:endX="74"
-                android:endY="58"
-                android:startColor="#22D3EE"
-                android:endColor="#B894FF" />
+                android:startX="54"
+                android:startY="28"
+                android:endX="28"
+                android:endY="80"
+                android:startColor="#7CF5D8"
+                android:endColor="#8AA7FF" />
         </aapt:attr>
     </path>
 
-    <!-- Destello / Partícula de energía viva -->
+    <!-- Punto de inicio -->
     <path
-        android:pathData="M74,48 L77,44 L80,48 L84,48 L81,51 L82,55 L78,52 L74,55 L75,51 Z"
-        android:fillColor="#34D399" />
-
-    <!-- Punto luminoso central en el ápice -->
-    <path
-        android:pathData="M54,44 A2.5,2.5 0 1,1 53.99,44 Z"
-        android:fillColor="#FFFFFF" />
+        android:pathData="M54,24 A4,4 0 1,1 53.99,24 Z"
+        android:fillColor="#E9EEF2" />
 </vector>

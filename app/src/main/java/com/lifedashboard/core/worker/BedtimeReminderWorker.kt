@@ -44,7 +44,7 @@ class BedtimeReminderWorker @AssistedInject constructor(
             val bedtimeHour = bedtimeMinutesFromMidnight / 60
             val bedtimeMinute = bedtimeMinutesFromMidnight % 60
 
-            val title = "🌙 Hora de desconectar (Vital)"
+            val title = "🌙 Hora de desconectar (Halo)"
             val message = String.format(
                 Locale.getDefault(),
                 "Para levantarte a las %02d:%02d con %.1fh de descanso, deberías dormirte a las %02d:%02d. ¡Prepárate para descansar en %d min!",

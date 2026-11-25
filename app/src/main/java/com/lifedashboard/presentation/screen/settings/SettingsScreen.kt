@@ -3281,7 +3281,7 @@ private fun EditWakeUpTimeModal(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
-                    text = "Selecciona tu hora habitual de despertar para que Vital calcule cuándo avisarte (30 min antes de dormir):",
+                    text = "Selecciona tu hora habitual de despertar para que Halo calcule cuándo avisarte (30 min antes de dormir):",
                     style = MaterialTheme.typography.bodySmall,
                     color = Gray300
                 )

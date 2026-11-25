@@ -1,4 +1,4 @@
-# ⚡ Vital — Life Dashboard
+# ◯ Halo — Life Dashboard
 
 > **Plataforma Integral de Salud, Nutrición Inteligente con IA Multimodal (Gemini 3.8 Flash), Hábitos, Peso y Rendimiento para Android, con Sincronización en Segundo Plano y Widgets Glassmorphic.**
 
@@ -15,7 +15,7 @@
 
 ## 📖 Descripción General
 
-**Vital (Life Dashboard)** es una aplicación moderna, fluida y reactiva para Android concebida bajo la filosofía **Local-First**, garantizando **privacidad absoluta**, estética *Dark Obsidian Glassmorphic* y autonomía energética. 
+**Halo (Life Dashboard)** es una aplicación moderna, fluida y reactiva para Android concebida bajo la filosofía **Local-First**, garantizando **privacidad absoluta**, estética *Dark Obsidian Glassmorphic* y autonomía energética. 
 
 Centraliza en un único ecosistema la monitorización biométrica en tiempo real (pasos, gasto calórico activo, arquitectura del sueño), el control de la ingesta nutricional mediante visión artificial multimodal, el seguimiento y análisis de tendencia del peso corporal, la gestión de sesiones de entrenamiento de fuerza y cardio, recordatorios circadianos de descanso y widgets de pantalla de inicio transparentes que se actualizan automáticamente en segundo plano.
 

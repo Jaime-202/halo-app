@@ -1,18 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Vital</string>
-    <string name="widget_description">Dashboard de vitalidad con pasos, calorías y sueño</string>
+    <string name="app_name">Halo</string>
+    <string name="widget_description">Tu día de un vistazo: pasos, calorías y sueño</string>
 
     <!-- Widgets -->
-    <string name="widget_1x1_name">Vital - Pulso (1x1)</string>
-    <string name="widget_1x1_description">Mini badge translúcido de pasos, calorías y sueño</string>
+    <string name="widget_1x1_name">Halo - Anillo (1x1)</string>
+    <string name="widget_1x1_description">Anillo compacto con pasos, calorías y sueño</string>
 
-    <string name="widget_1x2_name">Vital - Cápsula (2x1)</string>
-    <string name="widget_1x2_description">Cápsula translúcida de pulso con pasos, calorías y sueño</string>
+    <string name="widget_1x2_name">Halo - Cápsula (2x1)</string>
+    <string name="widget_1x2_description">Cápsula con pasos, calorías y sueño</string>
 
-    <string name="widget_2x2_name">Vital - Métricas (2x2)</string>
-    <string name="widget_2x2_description">Cuadrante glassmorphic con pasos, calorías activas y descanso</string>
+    <string name="widget_2x2_name">Halo - Métricas (2x2)</string>
+    <string name="widget_2x2_description">Pasos, calorías activas y descanso</string>
 
-    <string name="widget_expanded_name">Vital - Completo (4x2)</string>
-    <string name="widget_expanded_description">Panel translúcido completo con biometría y agenda</string>
+    <string name="widget_expanded_name">Halo - Completo (4x2)</string>
+    <string name="widget_expanded_description">Panel completo con métricas y agenda</string>
 </resources>

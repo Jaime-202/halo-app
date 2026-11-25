@@ -436,7 +436,7 @@ fun CompactWidgetContent(data: WidgetData) {
             horizontalAlignment = Alignment.Horizontal.Start,
             verticalAlignment   = Alignment.CenterVertically
         ) {
-            Text(text = "Vital", style = TextStyle(color = ColorProvider(White), fontSize = 11.sp, fontWeight = FontWeight.Bold))
+            Text(text = "Halo", style = TextStyle(color = ColorProvider(White), fontSize = 11.sp, fontWeight = FontWeight.Bold))
             Spacer(GlanceModifier.defaultWeight())
             Text(text = "${data.vitalityScore}%", style = TextStyle(color = ColorProvider(NeonViolet), fontSize = 9.sp, fontWeight = FontWeight.Bold))
         }
