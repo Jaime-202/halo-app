@@ -20,7 +20,7 @@ import com.lifedashboard.data.local.entity.*
         FavoriteFoodEntity::class,
         SavedMealEntity::class
     ],
-    version = 10,
+    version = 11,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

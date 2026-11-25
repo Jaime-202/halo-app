@@ -613,6 +613,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
         HealthPermission.getReadPermission(ExerciseSessionRecord::class),
         // Para la recuperación (opcionales: si no se conceden, se usa solo el sueño)
         HealthPermission.getReadPermission(androidx.health.connect.client.records.RestingHeartRateRecord::class),
+        HealthPermission.getReadPermission(androidx.health.connect.client.records.HeartRateRecord::class),
         HealthPermission.getReadPermission(androidx.health.connect.client.records.HeartRateVariabilityRmssdRecord::class),
     )
     val coreHealthPermissions = healthPermissions.take(5).toSet()

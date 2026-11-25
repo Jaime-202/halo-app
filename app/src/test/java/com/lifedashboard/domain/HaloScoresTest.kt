@@ -37,3 +37,26 @@ class HaloScoresTest {
         assertEquals(75, HaloScores.recovery(RecoveryInputs(6f, 8f, null, null, null, null)))
     }
 }
+
+class SymmetryCsvParserTest {
+    @Test fun parsesFlexibleHeaders() {
+        val csv = """
+            Date,Exercise,Set,Reps,Weight (kg),Notes
+            2026-11-20,Squat Pendulum,1,8,80,
+            2026-11-20,Squat Pendulum,2,8,85,"buena, sensación"
+            2026-11-21,Lat Pulldown,1,10,55,
+        """.trimIndent()
+        val days = com.lifedashboard.data.importer.SymmetryCsvParser.parse(csv)
+        assertEquals(2, days.size)
+        assertEquals(2, days[0].sets.size)
+        assertEquals("Sentadilla en péndulo", days[0].sets[1].exercise)
+        assertEquals(85f, days[0].sets[1].weightKg, 0.01f)
+    }
+
+    @Test fun convertsPoundsAndSemicolons() {
+        val csv = "fecha;ejercicio;reps;peso (lb)\n21/11/2026;Curl;12;20"
+        val d = com.lifedashboard.data.importer.SymmetryCsvParser.parse(csv).single()
+        assertEquals(9.07f, d.sets.single().weightKg, 0.01f)
+        assertEquals(1, d.sets.single().setNumber)
+    }
+}

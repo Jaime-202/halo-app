@@ -40,7 +40,8 @@ private const val KEY_FOLDER_URI = "symmetry_folder_uri"
 class SymmetrySyncWorker @AssistedInject constructor(
     @Assisted private val context: Context,
     @Assisted workerParams: WorkerParameters,
-    private val workoutDao: WorkoutDao
+    private val workoutDao: WorkoutDao,
+    private val importer: com.lifedashboard.data.importer.SymmetryCsvImporter
 ) : CoroutineWorker(context, workerParams) {
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
@@ -78,10 +79,7 @@ class SymmetrySyncWorker @AssistedInject constructor(
             .filter { it.isFile && it.name?.endsWith(".csv", ignoreCase = true) == true }
             .forEach { file ->
                 try {
-                    val uri = file.uri
-                    val sessions = parseCsvFile(uri)
-                    saveSessions(sessions)
-                    count += sessions.size
+                    count += importer.import(file.uri)
                 } catch (e: Exception) {
                     Log.w(TAG, "Error procesando ${file.name}", e)
                 }

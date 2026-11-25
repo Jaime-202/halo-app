@@ -1,5 +1,6 @@
 package com.lifedashboard.data.local.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
@@ -18,7 +19,17 @@ data class WorkoutSessionEntity(
     val durationMinutes: Int = 0,
     val notes: String? = null,
     val sourceFile: String? = null,         // "health_connect" | "symmetry_csv" | "manual"
-    val muscleGroupAllocation: String? = null // Ej. "Pecho:60,Tríceps:40"
+    val muscleGroupAllocation: String? = null, // Ej. "Pecho:60,Tríceps:40"
+    @ColumnInfo(defaultValue = "0")
+    val startMillis: Long = 0,              // Hora de inicio real (Health Connect)
+    @ColumnInfo(defaultValue = "0")
+    val endMillis: Long = 0,
+    @ColumnInfo(defaultValue = "0")
+    val activeKcal: Float = 0f,             // Calorías activas durante la sesión
+    @ColumnInfo(defaultValue = "0")
+    val avgHeartRate: Int = 0,              // Pulso medio (lpm), 0 = sin dato
+    @ColumnInfo(defaultValue = "0")
+    val maxHeartRate: Int = 0
 )
 
 /**

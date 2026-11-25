@@ -10,6 +10,7 @@ import androidx.health.connect.client.records.SleepSessionRecord
 import androidx.health.connect.client.records.StepsRecord
 import androidx.health.connect.client.records.TotalCaloriesBurnedRecord
 import androidx.health.connect.client.records.RestingHeartRateRecord
+import androidx.health.connect.client.records.HeartRateRecord
 import androidx.health.connect.client.records.HeartRateVariabilityRmssdRecord
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
@@ -179,14 +180,50 @@ class HealthConnectSyncWorker @AssistedInject constructor(
             workoutDao.deleteHealthConnectSessionsForDay(date.toStartOfDayMillis())
             exResp.records.forEach { exSession ->
                 val durationMin = Duration.between(exSession.startTime, exSession.endTime).toMinutes().toInt()
-                val typeStr = "STRENGTH"
+                val sessionRange = TimeRangeFilter.between(exSession.startTime, exSession.endTime)
+                val typeStr = when (exSession.exerciseType) {
+                    ExerciseSessionRecord.EXERCISE_TYPE_RUNNING,
+                    ExerciseSessionRecord.EXERCISE_TYPE_RUNNING_TREADMILL,
+                    ExerciseSessionRecord.EXERCISE_TYPE_BIKING,
+                    ExerciseSessionRecord.EXERCISE_TYPE_BIKING_STATIONARY,
+                    ExerciseSessionRecord.EXERCISE_TYPE_WALKING,
+                    ExerciseSessionRecord.EXERCISE_TYPE_HIKING,
+                    ExerciseSessionRecord.EXERCISE_TYPE_SWIMMING_POOL,
+                    ExerciseSessionRecord.EXERCISE_TYPE_SWIMMING_OPEN_WATER,
+                    ExerciseSessionRecord.EXERCISE_TYPE_ROWING_MACHINE,
+                    ExerciseSessionRecord.EXERCISE_TYPE_ELLIPTICAL,
+                    ExerciseSessionRecord.EXERCISE_TYPE_STAIR_CLIMBING_MACHINE -> "CARDIO"
+                    else -> "STRENGTH" // Symmetry registra fuerza; el resto se trata igual
+                }
+                // Calorías activas dentro de la sesión
+                val sessionKcal = try {
+                    client.readRecords(ReadRecordsRequest(ActiveCaloriesBurnedRecord::class, sessionRange))
+                        .records.sumOf { it.energy.inKilocalories }.toFloat()
+                } catch (e: Exception) { 0f }
+                // Pulso medio y máximo (permiso opcional)
+                var avgHr = 0
+                var maxHr = 0
+                try {
+                    val samples = client.readRecords(ReadRecordsRequest(HeartRateRecord::class, sessionRange))
+                        .records.flatMap { it.samples }.map { it.beatsPerMinute }
+                    if (samples.isNotEmpty()) {
+                        avgHr = samples.average().toInt()
+                        maxHr = samples.max().toInt()
+                    }
+                } catch (e: Exception) { /* sin permiso o sin reloj */ }
+
                 workoutDao.upsertSession(
                     WorkoutSessionEntity(
                         dateMillis      = date.toStartOfDayMillis(),
                         type            = typeStr,
-                        durationMinutes = if (durationMin > 0) durationMin else 45,
+                        durationMinutes = durationMin.coerceAtLeast(1),
                         notes           = exSession.title ?: exSession.notes,
-                        sourceFile      = "health_connect"
+                        sourceFile      = "health_connect",
+                        startMillis     = exSession.startTime.toEpochMilli(),
+                        endMillis       = exSession.endTime.toEpochMilli(),
+                        activeKcal      = sessionKcal,
+                        avgHeartRate    = avgHr,
+                        maxHeartRate    = maxHr
                     )
                 )
             }

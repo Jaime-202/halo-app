@@ -31,7 +31,7 @@ interface WorkoutDao {
         WHERE id NOT IN (
             SELECT MIN(id) 
             FROM workout_sessions 
-            GROUP BY dateMillis, durationMinutes, type, sourceFile
+            GROUP BY dateMillis, startMillis, durationMinutes, type, sourceFile
         )
     """)
     suspend fun deduplicateSessions()
@@ -73,6 +73,18 @@ interface WorkoutDao {
         GROUP BY es.exerciseName
     """)
     suspend fun getMaxWeightByExercise(fromMillis: Long): List<ExerciseMaxWeightResult>
+
+    @Query("SELECT * FROM workout_sessions WHERE dateMillis >= :fromMillis ORDER BY dateMillis DESC, startMillis DESC")
+    fun observeSessionsSince(fromMillis: Long): Flow<List<WorkoutSessionEntity>>
+
+    @Query("SELECT * FROM exercise_sets WHERE sessionId IN (:sessionIds) ORDER BY sessionId, exerciseName, setNumber")
+    suspend fun getSetsForSessions(sessionIds: List<Long>): List<ExerciseSetEntity>
+
+    @Query("SELECT COUNT(*) FROM workout_sessions WHERE sourceFile = 'symmetry_csv' AND dateMillis = :dateMillis")
+    suspend fun countCsvSessionsForDay(dateMillis: Long): Int
+
+    @Query("DELETE FROM workout_sessions WHERE sourceFile = 'symmetry_csv' AND dateMillis = :dateMillis")
+    suspend fun deleteCsvSessionsForDay(dateMillis: Long)
 }
 
 data class ExerciseVolumeResult(

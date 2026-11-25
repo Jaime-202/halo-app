@@ -105,6 +105,17 @@ object DatabaseModule {
         }
     }
 
+    /** v11: hora, calorías y pulso de cada sesión de entreno. */
+    private val MIGRATION_10_11 = object : Migration(10, 11) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE `workout_sessions` ADD COLUMN `startMillis` INTEGER NOT NULL DEFAULT 0")
+            db.execSQL("ALTER TABLE `workout_sessions` ADD COLUMN `endMillis` INTEGER NOT NULL DEFAULT 0")
+            db.execSQL("ALTER TABLE `workout_sessions` ADD COLUMN `activeKcal` REAL NOT NULL DEFAULT 0")
+            db.execSQL("ALTER TABLE `workout_sessions` ADD COLUMN `avgHeartRate` INTEGER NOT NULL DEFAULT 0")
+            db.execSQL("ALTER TABLE `workout_sessions` ADD COLUMN `maxHeartRate` INTEGER NOT NULL DEFAULT 0")
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase =
@@ -113,7 +124,7 @@ object DatabaseModule {
             AppDatabase::class.java,
             "life_dashboard.db"
         )
-            .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)
+            .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11)
             .fallbackToDestructiveMigration()
             .fallbackToDestructiveMigrationOnDowngrade()
             .build()
