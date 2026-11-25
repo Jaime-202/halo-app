@@ -1100,21 +1100,21 @@ class FoodAiService @Inject constructor(
         if (remaining > 500) {
             sb.append("Aún necesitas comer más hoy. Tienes un margen de $remaining kcal para nutrirte adecuadamente sin pasar hambre.\n\n")
             if (proteinDebt > 25f) {
-                sb.append("💡 Te faltan ${proteinDebt.toInt()}g de proteína. Te sugerimos: 160g de pechuga de pollo/pavo, 2 latas de atún al natural o un tazón de 200g de queso fresco batido 0% con canela o fruta.")
+                sb.append("Te faltan ${proteinDebt.toInt()}g de proteína. Te sugerimos: 160g de pechuga de pollo/pavo, 2 latas de atún al natural o un tazón de 200g de queso fresco batido 0% con canela o fruta.")
             } else {
-                sb.append("💡 Prioriza alimentos densos en nutrientes: arroz integral o patata cocida con una fuente magra de proteína y una cucharada de aceite de oliva.")
+                sb.append("Prioriza alimentos densos en nutrientes: arroz integral o patata cocida con una fuente magra de proteína y una cucharada de aceite de oliva.")
             }
         } else if (remaining in -150..500) {
             sb.append("¡Vas a un ritmo perfecto! Estás muy cerca de tu objetivo calórico de hoy ($remaining kcal restantes).\n\n")
             if (proteinDebt > 15f) {
-                sb.append("💡 Para tu última comida o snack, opta por proteína pura baja en calorías: claras de huevo revueltas, yogur griego o pechuga de pavo.")
+                sb.append("Para tu última comida o snack, opta por proteína pura baja en calorías: claras de huevo revueltas, yogur griego o pechuga de pavo.")
             } else {
-                sb.append("💡 Mantén una buena hidratación para la noche y una cena ligera a base de verduras salteadas o ensalada fresca.")
+                sb.append("Mantén una buena hidratación para la noche y una cena ligera a base de verduras salteadas o ensalada fresca.")
             }
         } else {
             val superado = -remaining
             sb.append("Has superado tu meta diaria en $superado kcal. La consistencia a lo largo de la semana es lo que realmente importa.\n\n")
-            sb.append("💡 Para el resto del día: modera la ingesta. Si tienes apetito, opta por infusiones calientes, caldo vegetal, pepino o gelatina 0%.")
+            sb.append("Para el resto del día: modera la ingesta. Si tienes apetito, opta por infusiones calientes, caldo vegetal, pepino o gelatina 0%.")
         }
         return sb.toString()
     }

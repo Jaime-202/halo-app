@@ -160,6 +160,8 @@ internal fun SwitchSettingItem(title: String, subtitle: String, checked: Boolean
 
 @Composable
 internal fun SectionHeader(title: String) {
+    // Dentro de un apartado de Ajustes el título ya está en la barra superior
+    if (LocalInsidePage.current) return
     Text(text = title, style = MaterialTheme.typography.labelLarge, color = Gray500)
 }
 

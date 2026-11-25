@@ -303,9 +303,9 @@ class DashboardViewModel @Inject constructor(
                 }.map { reminder ->
                     val isDone = logsMap[reminder.id]?.isCompleted == true
                     val subtitle = when (reminder.type) {
-                        ReminderType.HORARIO -> "⏰ ${reminder.timeOfDay}"
-                        ReminderType.DIARIO -> "📅 Diario · ${reminder.timeOfDay}"
-                        ReminderType.SEMANAL -> "📆 Semanal · ${reminder.timeOfDay}"
+                        ReminderType.HORARIO -> reminder.timeOfDay
+                        ReminderType.DIARIO -> "Diario · ${reminder.timeOfDay}"
+                        ReminderType.SEMANAL -> "Semanal · ${reminder.timeOfDay}"
                         else -> "Aviso · ${reminder.timeOfDay}"
                     }
                     DashboardReminderItem(

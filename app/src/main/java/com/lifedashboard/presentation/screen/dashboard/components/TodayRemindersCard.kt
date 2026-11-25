@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.NotificationsNone
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -115,7 +116,7 @@ fun TodayRemindersCard(
                             .padding(horizontal = 10.dp, vertical = 4.dp)
                     ) {
                         Text(
-                            text = if (allDone) "$doneCount/${reminders.size} ✅" else "$doneCount/${reminders.size}",
+                            text = if (allDone) "$doneCount/${reminders.size} · hecho" else "$doneCount/${reminders.size}",
                             style = MaterialTheme.typography.labelSmall,
                             color = if (allDone) Emerald400 else Violet300,
                             fontWeight = FontWeight.Bold
@@ -140,7 +141,7 @@ fun TodayRemindersCard(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text(text = "💊", fontSize = 18.sp)
+                        Icon(androidx.compose.material.icons.Icons.Outlined.NotificationsNone, contentDescription = null, tint = TextMute, modifier = Modifier.size(20.dp))
                         Spacer(Modifier.width(10.dp))
                         Column {
                             Text(
@@ -231,9 +232,11 @@ private fun ReminderRow(
                             if (item.isCompleted) Emerald400.copy(alpha = 0.15f) else Violet400.copy(alpha = 0.15f)
                         )
                 ) {
-                    Text(
-                        text = item.iconEmoji.ifBlank { "💊" },
-                        fontSize = 16.sp
+                    Icon(
+                        com.lifedashboard.presentation.common.components.ReminderIcon.from(item.iconEmoji).icon,
+                        contentDescription = null,
+                        tint = if (item.isCompleted) Emerald400 else Ion,
+                        modifier = Modifier.size(18.dp)
                     )
                 }
 

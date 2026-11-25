@@ -114,7 +114,12 @@ internal fun ReminderSettingsItemRow(
                     .clip(RoundedCornerShape(8.dp))
                     .background(if (reminder.isEnabled) Violet400.copy(alpha = 0.15f) else Indigo900.copy(alpha = 0.4f))
             ) {
-                Text(text = reminder.iconEmoji.ifBlank { "💊" }, fontSize = 16.sp)
+                Icon(
+                    com.lifedashboard.presentation.common.components.ReminderIcon.from(reminder.iconEmoji).icon,
+                    contentDescription = null,
+                    tint = if (reminder.isEnabled) Ion else TextMute,
+                    modifier = Modifier.size(18.dp)
+                )
             }
 
             Spacer(Modifier.width(10.dp))
@@ -189,9 +194,10 @@ internal fun AddEditReminderModal(
         mutableStateOf(initial)
     }
     var timeOfDay by remember { mutableStateOf(reminder?.timeOfDay ?: "09:00") }
-    var iconEmoji by remember { mutableStateOf(reminder?.iconEmoji ?: "💊") }
-
-    val emojis = listOf("💊", "💧", "🏋️", "🥗", "⏰", "🌿", "⚡", "🧘", "☕", "🍎")
+    var iconEmoji by remember {
+        mutableStateOf(com.lifedashboard.presentation.common.components.ReminderIcon.from(reminder?.iconEmoji).key)
+    }
+    val icons = com.lifedashboard.presentation.common.components.ReminderIcon.entries
     val daysMap = listOf(
         1 to "L", 2 to "M", 3 to "X", 4 to "J", 5 to "V", 6 to "S", 7 to "D"
     )
@@ -241,15 +247,15 @@ internal fun AddEditReminderModal(
                 )
 
                 // Selector de Emoji
-                Text("Icono / Emoji:", style = MaterialTheme.typography.labelSmall, color = Gray400)
+                Text("Icono:", style = MaterialTheme.typography.labelSmall, color = Gray400)
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     modifier = Modifier
                         .fillMaxWidth()
                         .horizontalScroll(rememberScrollState())
                 ) {
-                    emojis.forEach { emoji ->
-                        val isSelected = iconEmoji == emoji
+                    icons.forEach { option ->
+                        val isSelected = iconEmoji == option.key
                         Box(
                             contentAlignment = Alignment.Center,
                             modifier = Modifier
@@ -263,9 +269,9 @@ internal fun AddEditReminderModal(
                                     if (isSelected) Violet400 else Indigo700,
                                     RoundedCornerShape(8.dp)
                                 )
-                                .clickable { iconEmoji = emoji }
+                                .clickable { iconEmoji = option.key }
                         ) {
-                            Text(text = emoji, fontSize = 16.sp)
+                            Icon(option.icon, contentDescription = option.label, tint = if (isSelected) Ion else TextMute, modifier = Modifier.size(18.dp))
                         }
                     }
                 }
@@ -418,7 +424,7 @@ internal fun AddEditReminderModal(
                     }
 
                     Text(
-                        text = "🔔 Aviso puntual con sonido y opción de marcar como tomado.",
+                        text = "Aviso puntual con sonido y opción de marcar como hecho.",
                         style = MaterialTheme.typography.bodySmall,
                         color = Gray400,
                         fontSize = 11.sp

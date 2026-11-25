@@ -30,7 +30,7 @@ class DailySummaryWorker @AssistedInject constructor(
             val steps = goals.stepsTarget
             val activeKcal = goals.activeCaloriesTarget.toInt()
 
-            val title = "☀️ ¡Buenos días, $name!"
+            val title = "Buenos días, $name"
             val message = String.format(
                 Locale.getDefault(),
                 "Tus objetivos de hoy: %d pasos y %d kcal activas. ¡Mantén tu constancia y a por el día!",

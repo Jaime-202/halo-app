@@ -672,6 +672,31 @@ internal fun CaloriesSection(state: SettingsState, viewModel: SettingsViewModel,
             }
         )
     }
+
+    // Detalle del cálculo
+    SettingsCard {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text("CÓMO SE CALCULA", color = TextMute, style = androidx.compose.ui.text.TextStyle(fontFamily = MonoFamily, fontSize = 11.sp, letterSpacing = 1.2.sp))
+            listOf(
+                "Metabolismo basal" to "${state.bmrKcal.toInt()} kcal",
+                "Gasto diario" to "${state.tdeeKcal.toInt()} kcal",
+                "Proteína" to "${state.proteinTargetGrams.toInt()} g",
+                "Hidratos" to "${state.carbsTargetGrams.toInt()} g",
+                "Grasa" to "${state.fatTargetGrams.toInt()} g",
+            ).forEach { (k, v) ->
+                Row(Modifier.fillMaxWidth()) {
+                    Text(k, color = TextMute, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                    Text(v, color = TextHigh, style = androidx.compose.ui.text.TextStyle(fontFamily = MonoFamily, fontSize = 14.sp))
+                }
+                HorizontalDivider(color = Line)
+            }
+            Text(
+                "Basal con la fórmula Mifflin-St Jeor según tu sexo, edad, altura y peso, multiplicado por tu nivel de actividad. " +
+                    "Cuando hay 2–4 semanas de comidas y pesajes, Halo usa tu gasto real. El objetivo se recalcula cada vez que te pesas.",
+                color = TextMute, style = MaterialTheme.typography.bodySmall,
+            )
+        }
+    }
 }
 
 @Composable

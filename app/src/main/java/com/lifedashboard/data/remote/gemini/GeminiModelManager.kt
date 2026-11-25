@@ -39,9 +39,9 @@ object GeminiModelManager {
      * Modelos predefinidos recomendados para selector en la interfaz de usuario.
      */
     val PRESET_MODELS = listOf(
-        "gemini-3.8-flash" to "⚡ Gemini 3.8 Flash (Recomendado)",
-        "gemini-3.7-flash" to "✨ Gemini 3.7 Flash",
-        "auto" to "🎯 Auto-detectar de mi cuenta"
+        "gemini-3.8-flash" to "Gemini 3.8 Flash (recomendado)",
+        "gemini-3.7-flash" to "Gemini 3.7 Flash",
+        "auto" to "Detectar automáticamente"
     )
 
     /**

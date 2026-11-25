@@ -15,7 +15,7 @@ class ReminderAlarmReceiver : BroadcastReceiver() {
         if (reminderId == 0L) return
 
         val title = intent.getStringExtra("title") ?: "Recordatorio"
-        val emoji = intent.getStringExtra("emoji") ?: "💊"
+        val emoji = intent.getStringExtra("emoji") ?: "pastilla"
         val timeOfDay = intent.getStringExtra("time_of_day") ?: "09:00"
         val type = intent.getStringExtra("type") ?: ReminderType.DIARIO
         val daysOfWeek = intent.getStringExtra("days_of_week") ?: ""

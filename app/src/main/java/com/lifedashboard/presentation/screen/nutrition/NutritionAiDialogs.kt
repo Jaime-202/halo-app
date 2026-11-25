@@ -228,7 +228,7 @@ internal fun PhotoAiDialog(
                 if (detectedItems != null) {
                     if (explanation != null) {
                         Text(
-                            text = "💡 $explanation",
+                            text = explanation,
                             style = MaterialTheme.typography.bodySmall,
                             color = Gray300
                         )
@@ -593,7 +593,7 @@ internal fun TextAiMealDialog(
                 if (detectedItems != null) {
                     if (explanation != null) {
                         Text(
-                            text = "💡 $explanation",
+                            text = explanation,
                             style = MaterialTheme.typography.bodySmall,
                             color = Gray300
                         )
@@ -768,10 +768,10 @@ internal fun NutritionApiKeyDialog(
                         modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())
                     ) {
                         listOf(
-                            "gemini-3.8-flash" to "⚡ 3.8 Flash",
-                            "gemini-3.8-flash-lite" to "🚀 3.8 Lite",
-                            "gemini-3.7-flash" to "✨ 3.7",
-                            "auto" to "🎯 Auto"
+                            "gemini-3.8-flash" to "3.8 Flash",
+                            "gemini-3.8-flash-lite" to "3.8 Lite",
+                            "gemini-3.7-flash" to "3.7",
+                            "auto" to "Auto"
                         ).forEach { (modelKey, label) ->
                             val isSelected = !isCustom && selectedModel == modelKey
                             Box(
@@ -807,7 +807,7 @@ internal fun NutritionApiKeyDialog(
                                 .padding(horizontal = 8.dp, vertical = 5.dp)
                         ) {
                             Text(
-                                text = "✍️ Otro",
+                                text = "Otro",
                                 style = MaterialTheme.typography.labelSmall,
                                 fontSize = 11.sp,
                                 color = if (isCustom) Violet200 else Gray400,
@@ -902,7 +902,7 @@ internal fun NutritionApiKeyDialog(
                             .padding(8.dp)
                     ) {
                         Text(
-                            text = (if (isSuccess) "✅ " else "❌ ") + msg,
+                            text = msg,
                             color = if (isSuccess) Emerald400 else Rose400,
                             style = MaterialTheme.typography.labelSmall,
                             fontSize = 11.sp

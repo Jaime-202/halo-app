@@ -38,7 +38,7 @@ class EveningReviewWorker @AssistedInject constructor(
             val stepsTarget = goals.stepsTarget
             val percent = if (stepsTarget > 0) ((steps.toFloat() / stepsTarget) * 100).toInt() else 0
 
-            val title = "🌙 Resumen Nocturno de Recuperación"
+            val title = "Resumen de la noche"
             val message = if (steps > 0) {
                 String.format(
                     Locale.getDefault(),

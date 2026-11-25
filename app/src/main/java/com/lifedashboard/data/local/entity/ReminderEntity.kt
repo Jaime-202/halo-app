@@ -24,7 +24,7 @@ data class ReminderEntity(
     val type: String = ReminderType.DIARIO, // "DIARIO", "SEMANAL", "HORARIO"
     val daysOfWeek: String = "",           // Ej: "1,2,3,4,5" (1=Mon, 7=Sun)
     val timeOfDay: String = "09:00",       // Formato "HH:mm"
-    val iconEmoji: String = "💊",          // Emoji visual
+    val iconEmoji: String = "pastilla",    // Clave del icono (ver ReminderIcon); antes era un emoji
     val isEnabled: Boolean = true,
     val createdAt: Long = System.currentTimeMillis()
 )

@@ -121,7 +121,7 @@ internal fun NutritionHeader(
                             .clickable(onClick = onTodayClick)
                             .padding(horizontal = 8.dp, vertical = 6.dp)
                     ) {
-                        Text("↻ Hoy", style = MaterialTheme.typography.labelSmall, color = Violet300, fontWeight = FontWeight.Bold)
+                        Text("Hoy", style = MaterialTheme.typography.labelSmall, color = Violet300, fontWeight = FontWeight.Bold)
                     }
                     Spacer(Modifier.width(2.dp))
                 }
@@ -352,7 +352,7 @@ internal fun NutritionHeroCard(
                     horizontalArrangement = Arrangement.End
                 ) {
                     Text(
-                        text = "🔥 ${state.activeBurnedCalories.toInt()} kcal quemadas en entreno/pasos",
+                        text = "${state.activeBurnedCalories.toInt()} kcal quemadas en entreno y pasos",
                         style = MaterialTheme.typography.labelSmall,
                         color = Cyan400,
                         fontSize = 10.sp,
@@ -491,7 +491,7 @@ internal fun CompactMacroCard(
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = if (isComplete) "✓ Listo" else "${remainingGrams}g rest.",
+                    text = if (isComplete) "Listo" else "${remainingGrams}g rest.",
                     style = MaterialTheme.typography.labelSmall,
                     color = if (isComplete) Emerald400 else Gray400,
                     fontSize = 8.5.sp,
@@ -514,9 +514,6 @@ fun FoodThumbnail(
 ) {
     val resolvedUrl = remember(name, brand, imageUrl) {
         RealFoodImageResolver.resolve(name, brand, imageUrl)
-    }
-    val emoji = remember(name) {
-        RealFoodImageResolver.getAccurateEmoji(name)
     }
     val isPackaging = remember(resolvedUrl) {
         resolvedUrl?.contains("prod-mercadona.imgix.net") == true ||
@@ -541,9 +538,9 @@ fun FoodThumbnail(
                 RoundedCornerShape(12.dp)
             )
     ) {
-        // Fallback emoji solo si no hay URL o si la carga falló
+        // Sin foto (o mientras carga): miniatura dibujada según el tipo de alimento
         if (resolvedUrl.isNullOrBlank() || imageFailed || !imageLoaded) {
-            Text(text = emoji, fontSize = (size.value * 0.45f).sp)
+            com.lifedashboard.presentation.common.components.FoodKindTile(name, size, Modifier.fillMaxSize())
         }
 
         if (!resolvedUrl.isNullOrBlank() && !imageFailed) {

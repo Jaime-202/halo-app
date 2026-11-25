@@ -139,33 +139,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
         )
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Obsidian)
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp)
-            .padding(top = 56.dp, bottom = 100.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp)
-    ) {
-        Text(
-            text       = "Ajustes",
-            style      = MaterialTheme.typography.headlineSmall,
-            color      = White,
-            fontWeight = FontWeight.Bold
-        )
-        ProfileSection(state, viewModel, actions)
-        GoalsSection(state, viewModel, actions)
-        AutoRemindersSection(state, viewModel, actions)
-        MyRemindersSection(state, viewModel, actions)
-        GeminiSection(state, viewModel, actions)
-        HomeScreenSection(state, viewModel, actions)
-        ConnectionsSection(state, viewModel, actions)
-        ThemeSection(state, viewModel, actions)
-        CaloriesSection(state, viewModel, actions)
-        DataSection(state, viewModel, actions)
-        InfoSection(state, viewModel, actions)
-    }
+    SettingsHub(state, viewModel, actions)
 
     // ─── Modales ──────────────────────────────────────────────────────────
 

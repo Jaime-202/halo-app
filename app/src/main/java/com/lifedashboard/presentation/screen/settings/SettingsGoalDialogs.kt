@@ -678,7 +678,7 @@ internal fun EditWaterGoalModal(
                 )
 
                 Text(
-                    text = "💧 Esta meta es visual para tu progreso en la app (sin notificaciones emergentes).",
+                    text = "Esta meta es visual para tu progreso en la app (sin notificaciones emergentes).",
                     style = MaterialTheme.typography.bodySmall,
                     color = Gray400,
                     fontSize = 11.sp

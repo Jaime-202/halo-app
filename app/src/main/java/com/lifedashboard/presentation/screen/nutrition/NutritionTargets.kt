@@ -298,7 +298,7 @@ internal fun CustomMacroTargetsDialog(
                         }
                         val diff = (macroKcalSum - kcal).toInt()
                         Text(
-                            text = if (kotlin.math.abs(diff) <= 30) "✓ Los macros cuadran perfectamente con tu meta calórica." else "Nota: La suma de macros difiere en ${kotlin.math.abs(diff)} kcal respecto a tu meta de ${kcal.toInt()} kcal.",
+                            text = if (kotlin.math.abs(diff) <= 30) "Los macros cuadran perfectamente con tu meta calórica." else "Nota: La suma de macros difiere en ${kotlin.math.abs(diff)} kcal respecto a tu meta de ${kcal.toInt()} kcal.",
                             style = MaterialTheme.typography.labelSmall,
                             color = if (kotlin.math.abs(diff) <= 30) Emerald400 else Gray400
                         )
@@ -430,21 +430,21 @@ internal fun CaloricCalculatorDialog(
                 Text("Objetivo primario:", style = MaterialTheme.typography.labelSmall, color = Gray400)
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
                     GoalChip(
-                        title = "📉 Perder Grasa",
+                        title = "Perder grasa",
                         subtitle = "-500 kcal",
                         isSelected = selectedGoal == "PERDIDA_PESO" || selectedGoal == "GRASA",
                         onClick = { selectedGoal = "PERDIDA_PESO" },
                         modifier = Modifier.weight(1f)
                     )
                     GoalChip(
-                        title = "⚖️ Mantenimiento",
+                        title = "Mantenimiento",
                         subtitle = "Equilibrio",
                         isSelected = selectedGoal == "MANTENIMIENTO" || selectedGoal == "SALUD_GENERAL",
                         onClick = { selectedGoal = "MANTENIMIENTO" },
                         modifier = Modifier.weight(1f)
                     )
                     GoalChip(
-                        title = "📈 Músculo",
+                        title = "Ganar músculo",
                         subtitle = "+300 kcal",
                         isSelected = selectedGoal == "VOLUMEN" || selectedGoal == "MUSCULO",
                         onClick = { selectedGoal = "VOLUMEN" },

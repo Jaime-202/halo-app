@@ -162,10 +162,10 @@ internal fun EditApiKeyModal(
                         modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())
                     ) {
                         listOf(
-                            "gemini-3.8-flash" to "⚡ 3.8 Flash",
-                            "gemini-3.8-flash-lite" to "🚀 3.8 Lite",
-                            "gemini-3.7-flash" to "✨ 3.7",
-                            "auto" to "🎯 Auto"
+                            "gemini-3.8-flash" to "3.8 Flash",
+                            "gemini-3.8-flash-lite" to "3.8 Lite",
+                            "gemini-3.7-flash" to "3.7",
+                            "auto" to "Auto"
                         ).forEach { (modelKey, label) ->
                             val isSelected = !isCustom && selectedModel == modelKey
                             Box(
@@ -201,7 +201,7 @@ internal fun EditApiKeyModal(
                                 .padding(horizontal = 8.dp, vertical = 5.dp)
                         ) {
                             Text(
-                                text = "✍️ Otro",
+                                text = "Otro",
                                 style = MaterialTheme.typography.labelSmall,
                                 fontSize = 11.sp,
                                 color = if (isCustom) Violet200 else Gray400,
@@ -288,12 +288,12 @@ internal fun EditApiKeyModal(
                                 testIsSuccess == true -> {
                                     Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp), tint = Emerald400)
                                     Spacer(Modifier.width(6.dp))
-                                    Text("¡Funciona! ✔", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                                    Text("Funciona", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
                                 }
                                 testIsSuccess == false -> {
                                     Icon(Icons.Default.Close, contentDescription = null, modifier = Modifier.size(16.dp), tint = Rose400)
                                     Spacer(Modifier.width(6.dp))
-                                    Text("Error ✖", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                                    Text("Error", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
                                 }
                                 else -> {
                                     Icon(Icons.Default.CheckCircleOutline, contentDescription = null, modifier = Modifier.size(14.dp), tint = Violet300)
@@ -348,7 +348,7 @@ internal fun EditApiKeyModal(
                             }
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = if (isSuccess) "¡API Key funcional y activa! (✔)" else "Clave no válida o sin conexión (✖)",
+                                    text = if (isSuccess) "Clave válida y activa" else "Clave no válida o sin conexión",
                                     color = if (isSuccess) Emerald400 else Rose400,
                                     fontWeight = FontWeight.Bold,
                                     style = MaterialTheme.typography.labelMedium

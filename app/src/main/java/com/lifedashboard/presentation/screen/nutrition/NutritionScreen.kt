@@ -386,92 +386,27 @@ fun NutritionScreen(
         )
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Brush.verticalGradient(listOf(GradientStart, GradientEnd)))
-    ) {
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
-        ) {
-            // ─── Header con selector de fecha y estado de IA ─────────────
-            item {
-                NutritionHeader(
-                    selectedDate = state.selectedDate,
-                    hasGeminiApiKey = state.hasGeminiApiKey,
-                    onPreviousDay = { viewModel.selectDate(state.selectedDate.minusDays(1)) },
-                    onNextDay = { viewModel.selectDate(state.selectedDate.plusDays(1)) },
-                    onTodayClick = { viewModel.selectDate(LocalDate.now()) },
-                    onApiKeyClick = { showApiKeyModal = true }
-                )
-            }
-
-            // ─── Resumen Hero de Macros y Balance Calórico ────────────────
-            item {
-                NutritionHeroCard(
-                    state = state,
-                    onOpenCustomTargets = { showCustomTargetsDialog = true },
-                    onOpenCalculator = { viewModel.setCalculatorDialogVisible(true) }
-                )
-            }
-
-            // ─── Atajos: copiar ayer, etiqueta, comidas guardadas, favoritos ─
-            item {
-                FoodShortcutsCard(
-                    state = state,
-                    onCopyYesterday = { viewModel.copyPreviousDay() },
-                    onScanLabel = { labelLauncher.launch(null) },
-                    onSaveMeal = { showSaveMeal = true },
-                    onOpenSavedMeals = { showSavedMeals = true },
-                    onQuickFood = { quickFood = it }
-                )
-            }
-
-            // ─── Coach Nutricional IA ─────────────────────────────────────
-            item {
-                NutritionCoachCard(
-                    advice = state.nutritionAdvice,
-                    isLoading = state.isAdviceLoading,
-                    onRefresh = { viewModel.requestNutritionAdvice() }
-                )
-            }
-
-            // ─── Secciones de Comida ──────────────────────────────────────
-            items(MealSectionType.entries.toTypedArray()) { section ->
-                MealSectionCard(
-                    section = section,
-                    meals = state.mealsForType(section.key),
-                    onAddClick = {
-                        selectedMealTypeForAdd = section.key
-                        showSearchDialog = true
-                    },
-                    onScanBarcodeClick = {
-                        launchBarcodeScanner(section.key)
-                    },
-                    onAiClick = {
-                        selectedMealTypeForAdd = section.key
-                        viewModel.openTextAiDialog(section.key)
-                    },
-                    onQuickAddClick = {
-                        selectedMealTypeForAdd = section.key
-                        showQuickAddDialog = true
-                    },
-                    onEditMeal = { meal ->
-                        editingMealItem = meal
-                    },
-                    onDeleteMeal = { mealId ->
-                        viewModel.deleteMeal(mealId)
-                    }
-                )
-            }
-
-            item {
-                Spacer(Modifier.height(80.dp))
-            }
-        }
-    }
+    NutritionHome(
+        state = state,
+        a = NutritionHomeActions(
+            selectDate = { viewModel.selectDate(it) },
+            search = { type -> selectedMealTypeForAdd = type; showSearchDialog = true },
+            scan = { type -> launchBarcodeScanner(type) },
+            photo = { type -> selectedMealTypeForAdd = type; cameraLauncher.launch(null) },
+            label = { labelLauncher.launch(null) },
+            describe = { type -> selectedMealTypeForAdd = type; viewModel.openTextAiDialog(type) },
+            quickAdd = { type -> selectedMealTypeForAdd = type; showQuickAddDialog = true },
+            editMeal = { editingMealItem = it },
+            quickFood = { quickFood = it },
+            copyYesterday = { viewModel.copyPreviousDay() },
+            savedMeals = { showSavedMeals = true },
+            saveMeal = { showSaveMeal = true },
+            targets = { showCustomTargetsDialog = true },
+            calculator = { viewModel.setCalculatorDialogVisible(true) },
+            gemini = { showApiKeyModal = true },
+            refreshAdvice = { viewModel.requestNutritionAdvice(force = true) },
+        )
+    )
 }
 
 // ─── Header con selector de fecha y estado de IA ─────────────────────────────

@@ -195,7 +195,7 @@ private fun intensity(state: CalendarUiState, d: LocalDate, metric: CalendarMetr
 private fun heat(v: Float?, metric: CalendarMetric): Color = when {
     v == null -> Line
     metric == CalendarMetric.ACTIVIDAD -> Ion
-    v < 0.25f -> Ion.copy(alpha = 0.18f)
+    v < 0.25f -> Ion.copy(alpha = 0.26f)
     v < 0.5f -> Ion.copy(alpha = 0.38f)
     v < 0.75f -> Ion.copy(alpha = 0.6f)
     v < 0.95f -> Ion.copy(alpha = 0.82f)
@@ -359,25 +359,51 @@ private fun MonthView(state: CalendarUiState, metric: CalendarMetric, month: Yea
 @Composable
 private fun YearView(state: CalendarUiState, metric: CalendarMetric, year: Int, onShift: (Int) -> Unit, onSelect: (LocalDate) -> Unit) {
     val today = LocalDate.now()
-    val start = HistoryMath.mondayOf(LocalDate.of(year, 1, 1))
     val end = LocalDate.of(year, 12, 31)
-    val weeks = generateSequence(start) { it.plusWeeks(1) }.takeWhile { !it.isAfter(end) }.toList()
     val yearDays = generateSequence(LocalDate.of(year, 1, 1)) { it.plusDays(1) }.takeWhile { !it.isAfter(minOf(end, today)) }.toList()
     Card {
         Navigator("$year", onShift, canForward = year < today.year)
         Text("${yearDays.count { state.days[it]?.hasData == true }} días con datos", color = TextMute, style = MaterialTheme.typography.labelSmall)
-        // Rejilla tipo "año en píxeles": columnas = semanas, filas = días
-        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-            weeks.forEach { monday ->
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    (0..6).forEach { i ->
-                        val d = monday.plusDays(i.toLong())
-                        val inYear = d.year == year && !d.isAfter(today)
-                        Box(
-                            Modifier.size(9.dp).clip(RoundedCornerShape(2.dp))
-                                .background(if (!inYear) Color.Transparent else heat(intensity(state, d, metric), metric))
-                                .clickable(enabled = inYear) { onSelect(d) }
+        // Año en píxeles: una fila por mes y una columna por día; cabe entero en pantalla
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            val labelW = 22.dp
+            val gap = 2.dp
+            val cell = ((maxWidth - labelW - gap * 30) / 31).coerceAtMost(14.dp)
+            Column(verticalArrangement = Arrangement.spacedBy(gap)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
+                    Spacer(Modifier.width(labelW - gap))
+                    (1..31).forEach { day ->
+                        Box(Modifier.width(cell), contentAlignment = Alignment.Center) {
+                            if (day == 1 || day % 5 == 0) Text("$day", color = TextDim, style = TextStyle(fontFamily = MonoFamily, fontSize = 7.sp), maxLines = 1)
+                        }
+                    }
+                }
+                (1..12).forEach { m ->
+                    val ym = YearMonth.of(year, m)
+                    Row(horizontalArrangement = Arrangement.spacedBy(gap), verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            java.time.Month.of(m).getDisplayName(JTextStyle.NARROW_STANDALONE, es).uppercase(),
+                            color = if (ym == YearMonth.from(today)) TextHigh else TextMute,
+                            style = mono11,
+                            modifier = Modifier.width(labelW - gap),
                         )
+                        (1..31).forEach { day ->
+                            val exists = day <= ym.lengthOfMonth()
+                            val d = if (exists) ym.atDay(day) else null
+                            val inRange = d != null && !d.isAfter(today)
+                            Box(
+                                Modifier.size(cell).clip(RoundedCornerShape(2.dp))
+                                    .background(
+                                        when {
+                                            d == null -> Color.Transparent
+                                            !inRange -> Line.copy(alpha = 0.35f)
+                                            else -> heat(intensity(state, d, metric), metric)
+                                        }
+                                    )
+                                    .then(if (d == today) Modifier.border(1.dp, TextHigh, RoundedCornerShape(2.dp)) else Modifier)
+                                    .clickable(enabled = inRange) { d?.let(onSelect) }
+                            )
+                        }
                     }
                 }
             }

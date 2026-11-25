@@ -122,7 +122,7 @@ object NotificationHelper {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        // Acción directa "✔ Marcar como tomado" sin abrir la app
+        // Acción directa "Marcar como hecho" sin abrir la app
         val markIntent = Intent(context, MarkReminderCompletedReceiver::class.java).apply {
             putExtra("reminder_id", reminderId)
             putExtra("notification_id", notificationId)
@@ -136,7 +136,7 @@ object NotificationHelper {
 
         val notification = NotificationCompat.Builder(context, CHANNEL_REMINDERS_ID)
             .setSmallIcon(R.drawable.ic_launcher_monochrome)
-            .setContentTitle("$iconEmoji $title")
+            .setContentTitle(title)
             .setContentText("Toma programada a las $timeOfDay. Toca para verla o márcala directamente.")
             .setStyle(
                 NotificationCompat.BigTextStyle()
@@ -149,7 +149,7 @@ object NotificationHelper {
             .addAction(
                 NotificationCompat.Action.Builder(
                     null,
-                    "✔ Marcar como tomado",
+                    "Marcar como hecho",
                     markPendingIntent
                 ).build()
             )
@@ -181,11 +181,11 @@ object NotificationHelper {
 
         val notification = NotificationCompat.Builder(context, CHANNEL_REMINDERS_ID)
             .setSmallIcon(R.drawable.ic_launcher_monochrome)
-            .setContentTitle("🔔 ¡Notificaciones de Life Dashboard Activas!")
+            .setContentTitle("Las notificaciones de Halo funcionan")
             .setContentText("Tu teléfono está listo para avisarte de tus tomas, suplementos y descansos a la hora exacta.")
             .setStyle(
                 NotificationCompat.BigTextStyle()
-                    .bigText("✅ El sistema de notificaciones funciona a la perfección. Recibirás avisos puntuales con sonido y opción para marcar tus tomas completadas.")
+                    .bigText("El sistema de notificaciones funciona a la perfección. Recibirás avisos puntuales con sonido y opción para marcar tus tomas completadas.")
             )
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
