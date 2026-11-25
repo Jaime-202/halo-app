@@ -41,6 +41,9 @@ class NutritionRepository @Inject constructor(
         com.lifedashboard.core.worker.WidgetUpdateWorker.updateAllWidgets(context)
     }
 
+    suspend fun mealsBetween(startMillis: Long, endMillis: Long): List<MealEntryEntity> =
+        mealDao.getMealsBetween(startMillis, endMillis)
+
     suspend fun deleteMeal(mealId: Long) {
         mealDao.deleteMealById(mealId)
         com.lifedashboard.core.worker.WidgetUpdateWorker.updateAllWidgets(context)

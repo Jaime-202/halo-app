@@ -432,6 +432,8 @@ class FoodAiService @Inject constructor(
             FoodSourceCategory.DIA -> "Día"
             FoodSourceCategory.ALCAMPO -> "Alcampo"
             FoodSourceCategory.SUPERCOR -> "El Corte Inglés"
+            FoodSourceCategory.LIDL -> "Lidl"
+            FoodSourceCategory.EROSKI -> "Eroski"
             FoodSourceCategory.BASICOS -> "Básico"
             FoodSourceCategory.TODOS -> "Supermercado"
         }

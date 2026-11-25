@@ -1,5 +1,6 @@
 package com.lifedashboard.data.local.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
@@ -25,5 +26,11 @@ data class MealEntryEntity(
     val fat: Float,                    // Grasas en gramos
     val notes: String = "",            // Observaciones o notas adicionales
     val imageUrl: String? = null,      // Foto del producto o plato
+    @ColumnInfo(defaultValue = "0")
+    val fiber: Float = 0f,             // Fibra (g)
+    @ColumnInfo(defaultValue = "0")
+    val sugar: Float = 0f,             // Azúcares (g)
+    @ColumnInfo(defaultValue = "0")
+    val salt: Float = 0f,              // Sal (g)
     val createdAt: Long = System.currentTimeMillis()
 )

@@ -143,6 +143,8 @@ dependencies {
 
     // ─── Google Code Scanner (Escáner de código de barras nativo) ────
     implementation("com.google.android.gms:play-services-code-scanner:16.1.0")
+    // Lectura de etiquetas nutricionales (OCR en el dispositivo, vía Google Play Services)
+    implementation("com.google.android.gms:play-services-mlkit-text-recognition:19.0.1")
 
     // ─── Testing ────────────────────────────────────────────────────
     testImplementation(libs.junit)

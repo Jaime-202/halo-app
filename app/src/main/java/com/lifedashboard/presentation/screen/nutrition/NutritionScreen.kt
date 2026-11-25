@@ -74,6 +74,22 @@ fun NutritionScreen(
     var showCustomTargetsDialog by remember { mutableStateOf(false) }
     var showApiKeyModal by remember { mutableStateOf(false) }
 
+    // Biblioteca y etiqueta
+    var quickFood by remember { mutableStateOf<FoodCatalogItem?>(null) }
+    var showSavedMeals by remember { mutableStateOf(false) }
+    var showSaveMeal by remember { mutableStateOf(false) }
+    val labelLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicturePreview()
+    ) { bitmap: Bitmap? ->
+        if (bitmap != null) viewModel.readNutritionLabel(bitmap, defaultMealTypeForNow())
+    }
+    LaunchedEffect(state.libraryMessage) {
+        state.libraryMessage?.let {
+            Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
+            viewModel.consumeLibraryMessage()
+        }
+    }
+
     // Launchers para tomar foto con la cámara y seleccionar de la galería
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicturePreview()
@@ -198,6 +214,54 @@ fun NutritionScreen(
         )
     }
 
+    quickFood?.let { food ->
+        QuickFoodDialog(
+            food = food,
+            onAdd = { grams, type ->
+                viewModel.addFoodFromCatalog(food, grams, type)
+                quickFood = null
+            },
+            onDismiss = { quickFood = null }
+        )
+    }
+    if (showSavedMeals) {
+        SavedMealsDialog(
+            savedMeals = state.savedMeals,
+            onAdd = { saved, type ->
+                viewModel.addSavedMeal(saved, type)
+                showSavedMeals = false
+            },
+            onDelete = { viewModel.deleteSavedMeal(it) },
+            onDismiss = { showSavedMeals = false }
+        )
+    }
+    if (showSaveMeal) {
+        SaveMealDialog(
+            state = state,
+            onSave = { type, name ->
+                viewModel.saveMealGroup(type, name)
+                showSaveMeal = false
+            },
+            onDismiss = { showSaveMeal = false }
+        )
+    }
+    if (state.isReadingLabel) {
+        AlertDialog(
+            onDismissRequest = {},
+            containerColor = Panel,
+            title = { Text("Leyendo la etiqueta…", color = TextHigh) },
+            text = { LinearProgressIndicator(color = Ion, trackColor = Line, modifier = Modifier.fillMaxWidth()) },
+            confirmButton = {}
+        )
+    }
+    state.labelValues?.let { values ->
+        LabelReviewDialog(
+            values = values,
+            onAdd = { item, grams, fav -> viewModel.addFromLabel(item, grams, fav) },
+            onDismiss = { viewModel.dismissLabel() }
+        )
+    }
+
     // Diálogo de búsqueda y escaneo de alimentos
     if (showSearchDialog) {
         SearchFoodDialog(
@@ -216,7 +280,11 @@ fun NutritionScreen(
                 viewModel.addFoodFromCatalog(item, grams, selectedMealTypeForAdd)
                 showSearchDialog = false
             },
-            onDismiss = { showSearchDialog = false }
+            onDismiss = { showSearchDialog = false },
+            favorites = state.favorites,
+            recents = state.recents,
+            favoriteKeys = state.favoriteKeys,
+            onToggleFavorite = { viewModel.toggleFavorite(it) }
         )
     }
 
@@ -331,6 +399,18 @@ fun NutritionScreen(
                     state = state,
                     onOpenCustomTargets = { showCustomTargetsDialog = true },
                     onOpenCalculator = { viewModel.setCalculatorDialogVisible(true) }
+                )
+            }
+
+            // ─── Atajos: copiar ayer, etiqueta, comidas guardadas, favoritos ─
+            item {
+                FoodShortcutsCard(
+                    state = state,
+                    onCopyYesterday = { viewModel.copyPreviousDay() },
+                    onScanLabel = { labelLauncher.launch(null) },
+                    onSaveMeal = { showSaveMeal = true },
+                    onOpenSavedMeals = { showSavedMeals = true },
+                    onQuickFood = { quickFood = it }
                 )
             }
 
@@ -628,13 +708,14 @@ private fun NutritionHeroCard(
                         text = if (remaining >= 0) "$remaining" else "+${-remaining}",
                         fontSize = 22.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = if (remaining >= 0) Emerald400 else Rose400
+                        // Registro sin juicio: pasarse no se pinta en rojo
+                        color = if (remaining >= 0) Ion else TextHigh
                     )
                     Spacer(Modifier.width(4.dp))
                     Text(
-                        text = if (remaining >= 0) "kcal restantes" else "kcal superadas",
+                        text = if (remaining >= 0) "kcal restantes" else "kcal por encima del objetivo",
                         style = MaterialTheme.typography.labelMedium,
-                        color = if (remaining >= 0) Emerald400 else Rose400,
+                        color = TextMute,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(bottom = 2.dp)
                     )
@@ -2104,7 +2185,11 @@ private fun SearchFoodDialog(
     onCategorySelect: (FoodSourceCategory) -> Unit,
     onScanBarcode: () -> Unit,
     onAddFood: (FoodCatalogItem, Float) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    favorites: List<FoodCatalogItem> = emptyList(),
+    recents: List<FoodCatalogItem> = emptyList(),
+    favoriteKeys: Set<String> = emptySet(),
+    onToggleFavorite: (FoodCatalogItem) -> Unit = {}
 ) {
     var selectedItem by remember { mutableStateOf<FoodCatalogItem?>(null) }
     var inputGrams by remember { mutableStateOf("100") }
@@ -2265,6 +2350,28 @@ private fun SearchFoodDialog(
                                 Text(" gramos", style = MaterialTheme.typography.bodyMedium, color = Gray400)
                             }
 
+                            // Raciones rápidas: la ración del producto y 100 g
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                val portions = buildList {
+                                    if (item.servingSizeGrams > 0f && item.servingSizeGrams != 100f) {
+                                        add(item.servingDescription to item.servingSizeGrams)
+                                    }
+                                    add("100 g" to 100f)
+                                }
+                                portions.forEach { (label, g) ->
+                                    val active = inputGrams.toFloatOrNull() == g
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(50))
+                                            .border(1.dp, if (active) Ion else LineStrong, RoundedCornerShape(50))
+                                            .clickable { inputGrams = g.toInt().toString() }
+                                            .padding(horizontal = 10.dp, vertical = 5.dp)
+                                    ) {
+                                        Text(label, color = if (active) Ion else TextMute, style = MaterialTheme.typography.labelSmall, maxLines = 1)
+                                    }
+                                }
+                            }
+
                             // Macros calculados
                             Row(
                                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -2274,6 +2381,13 @@ private fun SearchFoodDialog(
                                 Text("P: ${calcP}g", color = Violet300)
                                 Text("C: ${calcC}g", color = Cyan400)
                                 Text("G: ${calcG}g", color = Amber400)
+                            }
+                            if (item.fiberPer100g > 0f || item.sugarPer100g > 0f || item.saltPer100g > 0f) {
+                                Text(
+                                    "Fibra ${"%.1f".format(item.fiberPer100g * factor)} g · Azúcar ${"%.1f".format(item.sugarPer100g * factor)} g · Sal ${"%.2f".format(item.saltPer100g * factor)} g",
+                                    color = TextMute,
+                                    style = MaterialTheme.typography.labelSmall
+                                )
                             }
 
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -2316,72 +2430,32 @@ private fun SearchFoodDialog(
                             }
                         }
 
-                        items(results) { food ->
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(14.dp))
-                                    .background(Indigo900.copy(alpha = 0.7f))
-                                    .clickable {
-                                        selectedItem = food
-                                        inputGrams = food.servingSizeGrams.toInt().toString()
-                                    }
-                                    .padding(10.dp)
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    // FOTO DEL ALIMENTO / PRODUCTO CON FALLBACK INTELIGENTE
-                                    FoodThumbnail(name = food.name, brand = food.brand, imageUrl = food.imageUrl, size = 46.dp)
-                                    Spacer(Modifier.width(12.dp))
-
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = food.name,
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = White,
-                                            fontWeight = FontWeight.SemiBold,
-                                            maxLines = 1,
-                                            softWrap = false,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-                                        Spacer(Modifier.height(2.dp))
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                        ) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .clip(RoundedCornerShape(4.dp))
-                                                    .background(Indigo700)
-                                                    .padding(horizontal = 6.dp, vertical = 2.dp)
-                                            ) {
-                                                Text(
-                                                    text = food.brand,
-                                                    style = MaterialTheme.typography.labelSmall,
-                                                    color = Violet300,
-                                                    fontSize = 9.sp,
-                                                    maxLines = 1,
-                                                    softWrap = false,
-                                                    overflow = TextOverflow.Ellipsis
-                                                )
-                                            }
-                                            val safeKcal100 = if (food.caloriesPer100g > 0f || food.name.contains("agua", ignoreCase = true)) {
-                                                food.caloriesPer100g
-                                            } else {
-                                                FoodCatalogService.inferMacrosIfZero(food.name, 0f, food.proteinPer100g, food.carbsPer100g, food.fatPer100g).calories
-                                            }
-                                            Text("${safeKcal100.toInt()} kcal/100g", style = MaterialTheme.typography.labelSmall, color = Amber400, fontSize = 11.sp, maxLines = 1, softWrap = false)
-                                            Text("·", color = Gray500)
-                                            Text("P:${food.proteinPer100g.toInt()}g", style = MaterialTheme.typography.labelSmall, color = Gray400, fontSize = 11.sp, maxLines = 1, softWrap = false)
-                                        }
-                                    }
-
-                                    Spacer(Modifier.width(8.dp))
-
-                                    Icon(Icons.Default.AddCircleOutline, contentDescription = "Seleccionar", tint = Violet400, modifier = Modifier.size(22.dp))
+                        val showLibrary = query.isBlank()
+                        if (showLibrary && favorites.isNotEmpty()) {
+                            item { LibrarySectionLabel("Favoritos") }
+                            items(favorites, key = { "fav_" + it.id }) { food ->
+                                SearchResultRow(food, true, onToggleFavorite) {
+                                    selectedItem = food
+                                    inputGrams = food.servingSizeGrams.toInt().toString()
                                 }
+                            }
+                        }
+                        if (showLibrary && recents.isNotEmpty()) {
+                            item { LibrarySectionLabel("Recientes") }
+                            items(recents, key = { "rec_" + it.id }) { food ->
+                                SearchResultRow(food, NutritionViewModel.foodKey(food.name, food.brand) in favoriteKeys, onToggleFavorite) {
+                                    selectedItem = food
+                                    inputGrams = food.servingSizeGrams.toInt().toString()
+                                }
+                            }
+                        }
+                        if (showLibrary && (favorites.isNotEmpty() || recents.isNotEmpty()) && results.isNotEmpty()) {
+                            item { LibrarySectionLabel("Catálogo") }
+                        }
+                        items(results) { food ->
+                            SearchResultRow(food, NutritionViewModel.foodKey(food.name, food.brand) in favoriteKeys, onToggleFavorite) {
+                                selectedItem = food
+                                inputGrams = food.servingSizeGrams.toInt().toString()
                             }
                         }
                     }
@@ -3726,4 +3800,97 @@ private fun NutritionApiKeyDialog(
             }
         }
     }
+}
+
+
+// ─── Fila de resultado del buscador (catálogo, favoritos y recientes) ────────
+
+@Composable
+private fun SearchResultRow(
+    food: FoodCatalogItem,
+    isFavorite: Boolean,
+    onToggleFavorite: (FoodCatalogItem) -> Unit,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(Indigo900.copy(alpha = 0.7f))
+            .clickable(onClick = onClick)
+            .padding(10.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            // FOTO DEL ALIMENTO / PRODUCTO CON FALLBACK INTELIGENTE
+            FoodThumbnail(name = food.name, brand = food.brand, imageUrl = food.imageUrl, size = 46.dp)
+            Spacer(Modifier.width(12.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = food.name,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = White,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(Modifier.height(2.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(Indigo700)
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = food.brand,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Violet300,
+                            fontSize = 9.sp,
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    val safeKcal100 = if (food.caloriesPer100g > 0f || food.name.contains("agua", ignoreCase = true)) {
+                        food.caloriesPer100g
+                    } else {
+                        FoodCatalogService.inferMacrosIfZero(food.name, 0f, food.proteinPer100g, food.carbsPer100g, food.fatPer100g).calories
+                    }
+                    Text("${safeKcal100.toInt()} kcal/100g", style = MaterialTheme.typography.labelSmall, color = Amber400, fontSize = 11.sp, maxLines = 1, softWrap = false)
+                    Text("·", color = Gray500)
+                    Text("P:${food.proteinPer100g.toInt()}g", style = MaterialTheme.typography.labelSmall, color = Gray400, fontSize = 11.sp, maxLines = 1, softWrap = false)
+                }
+            }
+
+            Spacer(Modifier.width(8.dp))
+
+            IconButton(onClick = { onToggleFavorite(food) }, modifier = Modifier.size(32.dp)) {
+                Icon(
+                    if (isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
+                    contentDescription = if (isFavorite) "Quitar de favoritos" else "Añadir a favoritos",
+                    tint = if (isFavorite) Ion else TextMute,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            Icon(Icons.Default.AddCircleOutline, contentDescription = "Seleccionar", tint = Violet400, modifier = Modifier.size(22.dp))
+        }
+    }
+}
+
+@Composable
+private fun LibrarySectionLabel(text: String) {
+    Text(
+        text.uppercase(),
+        color = TextMute,
+        style = androidx.compose.ui.text.TextStyle(fontFamily = MonoFamily, fontSize = 11.sp, letterSpacing = 1.2.sp),
+        modifier = Modifier.padding(top = 6.dp, bottom = 2.dp)
+    )
 }

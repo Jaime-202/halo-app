@@ -24,6 +24,8 @@ enum class FoodSourceCategory(val label: String) {
     DIA("Día"),
     ALCAMPO("Alcampo"),
     SUPERCOR("Supercor / ECI"),
+    LIDL("Lidl"),
+    EROSKI("Eroski"),
     BASICOS("Básicos / Genéricos")
 }
 
@@ -46,7 +48,10 @@ data class FoodCatalogItem(
     val servingDescription: String = "100g",
     val barcode: String? = null,
     val imageUrl: String? = null,
-    val isGeneric: Boolean = false
+    val isGeneric: Boolean = false,
+    val fiberPer100g: Float = 0f,
+    val sugarPer100g: Float = 0f,
+    val saltPer100g: Float = 0f
 )
 
 @Singleton
@@ -68,7 +73,7 @@ class FoodCatalogService @Inject constructor(
             fatPer100g = 11f,
             servingSizeGrams = 10f,
             servingDescription = "1 tostada (~10g)",
-            imageUrl = "https://images.openfoodfacts.net/images/products/871/044/502/0878/front_es.88.200.jpg",
+            imageUrl = "https://images.openfoodfacts.org/images/products/871/044/502/0878/front_es.88.200.jpg",
             barcode = "8710445020878"
         ),
         FoodCatalogItem(
@@ -81,7 +86,7 @@ class FoodCatalogService @Inject constructor(
             fatPer100g = 2.4f,
             servingSizeGrams = 42f,
             servingDescription = "1 rebanada (~42g)",
-            imageUrl = "https://images.openfoodfacts.net/images/products/848/000/082/3850/front_es.18.200.jpg",
+            imageUrl = "https://images.openfoodfacts.org/images/products/848/000/082/3850/front_es.18.200.jpg",
             barcode = "8480000823850"
         ),
         FoodCatalogItem(
@@ -94,7 +99,7 @@ class FoodCatalogService @Inject constructor(
             fatPer100g = 5.5f,
             servingSizeGrams = 18f,
             servingDescription = "1 biscote (~18g)",
-            imageUrl = "https://images.openfoodfacts.net/images/products/848/000/082/6127/front_es.25.200.jpg",
+            imageUrl = "https://images.openfoodfacts.org/images/products/848/000/082/6127/front_es.25.200.jpg",
             barcode = "8480000826127"
         ),
         FoodCatalogItem(
@@ -119,7 +124,7 @@ class FoodCatalogService @Inject constructor(
             fatPer100g = 9.8f,
             servingSizeGrams = 20f,
             servingDescription = "1 puñado (~20g)",
-            imageUrl = "https://images.openfoodfacts.net/images/products/848/000/082/5359/front_es.3.200.jpg",
+            imageUrl = "https://images.openfoodfacts.org/images/products/848/000/082/5359/front_es.3.200.jpg",
             barcode = "8480000825359"
         ),
         FoodCatalogItem(
@@ -132,7 +137,7 @@ class FoodCatalogService @Inject constructor(
             fatPer100g = 1.6f,
             servingSizeGrams = 50f,
             servingDescription = "2 lonchas (~50g)",
-            imageUrl = "https://images.openfoodfacts.net/images/products/848/000/059/1179/front_es.33.200.jpg",
+            imageUrl = "https://images.openfoodfacts.org/images/products/848/000/059/1179/front_es.33.200.jpg",
             barcode = "8480000591179"
         ),
         FoodCatalogItem(
@@ -145,7 +150,7 @@ class FoodCatalogService @Inject constructor(
             fatPer100g = 1.5f,
             servingSizeGrams = 50f,
             servingDescription = "2 lonchas (~50g)",
-            imageUrl = "https://images.openfoodfacts.net/images/products/848/000/059/1186/front_es.23.200.jpg",
+            imageUrl = "https://images.openfoodfacts.org/images/products/848/000/059/1186/front_es.23.200.jpg",
             barcode = "8480000591186"
         ),
         FoodCatalogItem(
@@ -158,7 +163,7 @@ class FoodCatalogService @Inject constructor(
             fatPer100g = 0.1f,
             servingSizeGrams = 200f,
             servingDescription = "1 tazón (~200g)",
-            imageUrl = "https://images.openfoodfacts.net/images/products/848/000/015/6583/front_es.36.200.jpg",
+            imageUrl = "https://images.openfoodfacts.org/images/products/848/000/015/6583/front_es.36.200.jpg",
             barcode = "8480000156583"
         ),
         FoodCatalogItem(
@@ -171,7 +176,7 @@ class FoodCatalogService @Inject constructor(
             fatPer100g = 19.8f,
             servingSizeGrams = 40f,
             servingDescription = "2 cucharadas (~40g)",
-            imageUrl = "https://images.openfoodfacts.net/images/products/848/000/026/0402/front_es.61.200.jpg",
+            imageUrl = "https://images.openfoodfacts.org/images/products/848/000/026/0402/front_es.61.200.jpg",
             barcode = "8480000260402"
         ),
         FoodCatalogItem(
@@ -184,7 +189,7 @@ class FoodCatalogService @Inject constructor(
             fatPer100g = 7f,
             servingSizeGrams = 50f,
             servingDescription = "1 ración (~50g)",
-            imageUrl = "https://images.openfoodfacts.net/images/products/848/000/009/4816/front_es.29.200.jpg",
+            imageUrl = "https://images.openfoodfacts.org/images/products/848/000/009/4816/front_es.29.200.jpg",
             barcode = "8480000094816"
         ),
         FoodCatalogItem(
@@ -197,7 +202,7 @@ class FoodCatalogService @Inject constructor(
             fatPer100g = 0.2f,
             servingSizeGrams = 100f,
             servingDescription = "100ml (3 claras)",
-            imageUrl = "https://images.openfoodfacts.net/images/products/848/000/012/6531/front_es.34.200.jpg",
+            imageUrl = "https://images.openfoodfacts.org/images/products/848/000/012/6531/front_es.34.200.jpg",
             barcode = "8480000126531"
         ),
         FoodCatalogItem(
@@ -210,7 +215,7 @@ class FoodCatalogService @Inject constructor(
             fatPer100g = 0.6f,
             servingSizeGrams = 60f,
             servingDescription = "1 lata escurrida (~60g)",
-            imageUrl = "https://images.openfoodfacts.net/images/products/848/000/018/1417/front_es.33.200.jpg",
+            imageUrl = "https://images.openfoodfacts.org/images/products/848/000/018/1417/front_es.33.200.jpg",
             barcode = "8480000181417"
         ),
         FoodCatalogItem(
@@ -223,7 +228,7 @@ class FoodCatalogService @Inject constructor(
             fatPer100g = 15f,
             servingSizeGrams = 50f,
             servingDescription = "1 ración (~50g)",
-            imageUrl = "https://images.openfoodfacts.net/images/products/848/000/026/0419/front_es.39.200.jpg",
+            imageUrl = "https://images.openfoodfacts.org/images/products/848/000/026/0419/front_es.39.200.jpg",
             barcode = "8480000260419"
         ),
         FoodCatalogItem(
@@ -236,7 +241,7 @@ class FoodCatalogService @Inject constructor(
             fatPer100g = 100f,
             servingSizeGrams = 10f,
             servingDescription = "1 cucharada (~10g)",
-            imageUrl = "https://images.openfoodfacts.net/images/products/848/000/021/4139/front_es.16.200.jpg",
+            imageUrl = "https://images.openfoodfacts.org/images/products/848/000/021/4139/front_es.16.200.jpg",
             barcode = "8480000214139"
         ),
         FoodCatalogItem(
@@ -249,7 +254,7 @@ class FoodCatalogService @Inject constructor(
             fatPer100g = 50f,
             servingSizeGrams = 20f,
             servingDescription = "1 cucharada colmada (~20g)",
-            imageUrl = "https://images.openfoodfacts.net/images/products/848/000/021/6881/front_es.35.200.jpg",
+            imageUrl = "https://images.openfoodfacts.org/images/products/848/000/021/6881/front_es.35.200.jpg",
             barcode = "8480000216881"
         ),
         FoodCatalogItem(
@@ -262,7 +267,7 @@ class FoodCatalogService @Inject constructor(
             fatPer100g = 1.6f,
             servingSizeGrams = 200f,
             servingDescription = "1 tarrina (~200g)",
-            imageUrl = "https://images.openfoodfacts.net/images/products/848/000/015/8860/front_es.32.200.jpg",
+            imageUrl = "https://images.openfoodfacts.org/images/products/848/000/015/8860/front_es.32.200.jpg",
             barcode = "8480000158860"
         ),
         FoodCatalogItem(
@@ -275,7 +280,7 @@ class FoodCatalogService @Inject constructor(
             fatPer100g = 11f,
             servingSizeGrams = 125f,
             servingDescription = "1 yogur (~125g)",
-            imageUrl = "https://images.openfoodfacts.net/images/products/848/000/015/4565/front_es.25.200.jpg",
+            imageUrl = "https://images.openfoodfacts.org/images/products/848/000/015/4565/front_es.25.200.jpg",
             barcode = "8480000154565"
         ),
         FoodCatalogItem(
@@ -288,7 +293,7 @@ class FoodCatalogService @Inject constructor(
             fatPer100g = 7.2f,
             servingSizeGrams = 100f,
             servingDescription = "1 ración (~100g)",
-            imageUrl = "https://images.openfoodfacts.net/images/products/848/000/016/5288/front_es.16.200.jpg",
+            imageUrl = "https://images.openfoodfacts.org/images/products/848/000/016/5288/front_es.16.200.jpg",
             barcode = "8480000165288"
         ),
         FoodCatalogItem(
@@ -301,7 +306,7 @@ class FoodCatalogService @Inject constructor(
             fatPer100g = 2.3f,
             servingSizeGrams = 8f,
             servingDescription = "1 tortita (~8g)",
-            imageUrl = "https://images.openfoodfacts.net/images/products/848/000/082/2853/front_es.14.200.jpg",
+            imageUrl = "https://images.openfoodfacts.org/images/products/848/000/082/2853/front_es.14.200.jpg",
             barcode = "8480000822853"
         ),
         FoodCatalogItem(
@@ -314,7 +319,7 @@ class FoodCatalogService @Inject constructor(
             fatPer100g = 11f,
             servingSizeGrams = 40f,
             servingDescription = "2 lonchas (~40g)",
-            imageUrl = "https://images.openfoodfacts.net/images/products/848/000/051/5243/front_es.20.200.jpg",
+            imageUrl = "https://images.openfoodfacts.org/images/products/848/000/051/5243/front_es.20.200.jpg",
             barcode = "8480000515243"
         ),
         FoodCatalogItem(
@@ -327,7 +332,7 @@ class FoodCatalogService @Inject constructor(
             fatPer100g = 11.5f,
             servingSizeGrams = 50f,
             servingDescription = "2 lonchas (~50g)",
-            imageUrl = "https://images.openfoodfacts.net/images/products/848/000/018/6955/front_es.17.200.jpg",
+            imageUrl = "https://images.openfoodfacts.org/images/products/848/000/018/6955/front_es.17.200.jpg",
             barcode = "8480000186955"
         ),
         FoodCatalogItem(
@@ -340,7 +345,7 @@ class FoodCatalogService @Inject constructor(
             fatPer100g = 1.8f,
             servingSizeGrams = 200f,
             servingDescription = "1 vaso (~200ml)",
-            imageUrl = "https://images.openfoodfacts.net/images/products/848/000/011/4986/front_es.28.200.jpg",
+            imageUrl = "https://images.openfoodfacts.org/images/products/848/000/011/4986/front_es.28.200.jpg",
             barcode = "8480000114986"
         ),
         FoodCatalogItem(
@@ -353,7 +358,7 @@ class FoodCatalogService @Inject constructor(
             fatPer100g = 0.2f,
             servingSizeGrams = 200f,
             servingDescription = "1 vaso (~200ml)",
-            imageUrl = "https://images.openfoodfacts.net/images/products/848/000/010/8254/front_es.30.200.jpg",
+            imageUrl = "https://images.openfoodfacts.org/images/products/848/000/010/8254/front_es.30.200.jpg",
             barcode = "8480000108254"
         ),
         FoodCatalogItem(
@@ -366,7 +371,7 @@ class FoodCatalogService @Inject constructor(
             fatPer100g = 2.1f,
             servingSizeGrams = 200f,
             servingDescription = "Medio bote escurrido (~200g)",
-            imageUrl = "https://images.openfoodfacts.net/images/products/848/000/016/0856/front_es.24.200.jpg",
+            imageUrl = "https://images.openfoodfacts.org/images/products/848/000/016/0856/front_es.24.200.jpg",
             barcode = "8480000160856"
         ),
         FoodCatalogItem(
@@ -379,7 +384,7 @@ class FoodCatalogService @Inject constructor(
             fatPer100g = 0.8f,
             servingSizeGrams = 200f,
             servingDescription = "Medio bote escurrido (~200g)",
-            imageUrl = "https://images.openfoodfacts.net/images/products/848/000/016/0863/front_es.22.200.jpg",
+            imageUrl = "https://images.openfoodfacts.org/images/products/848/000/016/0863/front_es.22.200.jpg",
             barcode = "8480000160863"
         ),
         FoodCatalogItem(
@@ -392,7 +397,7 @@ class FoodCatalogService @Inject constructor(
             fatPer100g = 0.1f,
             servingSizeGrams = 100f,
             servingDescription = "100g",
-            imageUrl = "https://images.openfoodfacts.net/images/products/848/000/016/2645/front_es.27.200.jpg",
+            imageUrl = "https://images.openfoodfacts.org/images/products/848/000/016/2645/front_es.27.200.jpg",
             barcode = "8480000162645"
         ),
         FoodCatalogItem(
@@ -409,39 +414,39 @@ class FoodCatalogService @Inject constructor(
         ),
 
         // ─── CARREFOUR (FOTOS REALES DE PRODUCTO) ───────────────────────────
-        FoodCatalogItem("car_pan_1", "Pan de molde 100% integral Carrefour", "Carrefour", 228f, 9.8f, 39f, 2.6f, 40f, "1 rebanada (~40g)", imageUrl = "https://images.openfoodfacts.net/images/products/356/007/045/8028/front_es.16.200.jpg"),
+        FoodCatalogItem("car_pan_1", "Pan de molde 100% integral Carrefour", "Carrefour", 228f, 9.8f, 39f, 2.6f, 40f, "1 rebanada (~40g)", imageUrl = "https://images.openfoodfacts.org/images/products/356/007/045/8028/front_es.16.200.jpg"),
         FoodCatalogItem("car_pan_2", "Barra de pan rústica Carrefour", "Carrefour", 252f, 8.4f, 51f, 1.3f, 60f, "1 trozo (~60g)", imageUrl = "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=200&q=80"),
-        FoodCatalogItem("car_pavo_1", "Pechuga de pavo extra Carrefour", "Carrefour", 95f, 19f, 1f, 1.5f, 50f, "2 lonchas (~50g)", imageUrl = "https://images.openfoodfacts.net/images/products/356/007/049/3081/front_es.17.200.jpg"),
+        FoodCatalogItem("car_pavo_1", "Pechuga de pavo extra Carrefour", "Carrefour", 95f, 19f, 1f, 1.5f, 50f, "2 lonchas (~50g)", imageUrl = "https://images.openfoodfacts.org/images/products/356/007/049/3081/front_es.17.200.jpg"),
         FoodCatalogItem("car_pollo_1", "Pechuga de pollo asada Carrefour", "Carrefour", 98f, 20f, 0.8f, 1.6f, 50f, "2 lonchas (~50g)", imageUrl = "https://images.unsplash.com/photo-1604503468506-a8da13d82791?w=200&q=80"),
-        FoodCatalogItem("car_queso_1", "Queso fresco batido desnatado Carrefour", "Carrefour", 47f, 8.5f, 3.6f, 0.1f, 200f, "1 tazón (~200g)", imageUrl = "https://images.openfoodfacts.net/images/products/356/007/049/8406/front_es.14.200.jpg"),
-        FoodCatalogItem("car_leche_1", "Leche desnatada Carrefour", "Carrefour", 34f, 3.1f, 4.8f, 0.2f, 200f, "1 vaso (~200ml)", imageUrl = "https://images.openfoodfacts.net/images/products/356/007/038/4952/front_es.21.200.jpg"),
-        FoodCatalogItem("car_atun_1", "Atún claro al natural Carrefour", "Carrefour", 102f, 24f, 0f, 0.7f, 60f, "1 lata escurrida (~60g)", imageUrl = "https://images.openfoodfacts.net/images/products/356/007/050/0949/front_es.19.200.jpg"),
-        FoodCatalogItem("car_avena_1", "Copos de avena integral Carrefour Bio", "Carrefour", 370f, 13f, 58f, 7f, 50f, "1 ración (~50g)", imageUrl = "https://images.openfoodfacts.net/images/products/356/007/081/8112/front_es.25.200.jpg"),
+        FoodCatalogItem("car_queso_1", "Queso fresco batido desnatado Carrefour", "Carrefour", 47f, 8.5f, 3.6f, 0.1f, 200f, "1 tazón (~200g)", imageUrl = "https://images.openfoodfacts.org/images/products/356/007/049/8406/front_es.14.200.jpg"),
+        FoodCatalogItem("car_leche_1", "Leche desnatada Carrefour", "Carrefour", 34f, 3.1f, 4.8f, 0.2f, 200f, "1 vaso (~200ml)", imageUrl = "https://images.openfoodfacts.org/images/products/356/007/038/4952/front_es.21.200.jpg"),
+        FoodCatalogItem("car_atun_1", "Atún claro al natural Carrefour", "Carrefour", 102f, 24f, 0f, 0.7f, 60f, "1 lata escurrida (~60g)", imageUrl = "https://images.openfoodfacts.org/images/products/356/007/050/0949/front_es.19.200.jpg"),
+        FoodCatalogItem("car_avena_1", "Copos de avena integral Carrefour Bio", "Carrefour", 370f, 13f, 58f, 7f, 50f, "1 ración (~50g)", imageUrl = "https://images.openfoodfacts.org/images/products/356/007/081/8112/front_es.25.200.jpg"),
         FoodCatalogItem("car_hummus_1", "Hummus clásico Carrefour", "Carrefour", 270f, 6.2f, 17f, 19f, 40f, "2 cucharadas (~40g)", imageUrl = "https://images.unsplash.com/photo-1577906096429-f73c2c312435?w=200&q=80"),
         FoodCatalogItem("car_tortitas_1", "Tortitas de maíz Carrefour", "Carrefour", 385f, 7.8f, 82f, 2.2f, 8f, "1 tortita (~8g)", imageUrl = "https://images.unsplash.com/photo-1599490659213-e2b9527bd087?w=200&q=80"),
 
         // ─── DÍA (FOTOS REALES DE PRODUCTO) ──────────────────────────────────
-        FoodCatalogItem("dia_pan_1", "Pan de molde integral Día", "Día", 230f, 9.5f, 40f, 2.5f, 40f, "1 rebanada (~40g)", imageUrl = "https://images.openfoodfacts.net/images/products/848/001/710/2481/front_es.11.200.jpg"),
+        FoodCatalogItem("dia_pan_1", "Pan de molde integral Día", "Día", 230f, 9.5f, 40f, 2.5f, 40f, "1 rebanada (~40g)", imageUrl = "https://images.openfoodfacts.org/images/products/848/001/710/2481/front_es.11.200.jpg"),
         FoodCatalogItem("dia_pan_2", "Barra de pan horneada Día", "Día", 250f, 8.5f, 50f, 1.2f, 60f, "1 trozo (~60g)", imageUrl = "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=200&q=80"),
-        FoodCatalogItem("dia_pavo_1", "Pechuga de pavo 90% carne Día", "Día", 92f, 18f, 1.5f, 1.2f, 50f, "2 lonchas (~50g)", imageUrl = "https://images.openfoodfacts.net/images/products/848/001/708/1793/front_es.12.200.jpg"),
+        FoodCatalogItem("dia_pavo_1", "Pechuga de pavo 90% carne Día", "Día", 92f, 18f, 1.5f, 1.2f, 50f, "2 lonchas (~50g)", imageUrl = "https://images.openfoodfacts.org/images/products/848/001/708/1793/front_es.12.200.jpg"),
         FoodCatalogItem("dia_pollo_1", "Pechuga de pollo braseada Día", "Día", 96f, 19f, 1.2f, 1.4f, 50f, "2 lonchas (~50g)", imageUrl = "https://images.unsplash.com/photo-1604503468506-a8da13d82791?w=200&q=80"),
-        FoodCatalogItem("dia_leche_1", "Leche desnatada Día", "Día", 35f, 3.2f, 4.9f, 0.2f, 200f, "1 vaso (~200ml)", imageUrl = "https://images.openfoodfacts.net/images/products/848/001/704/8666/front_es.20.200.jpg"),
+        FoodCatalogItem("dia_leche_1", "Leche desnatada Día", "Día", 35f, 3.2f, 4.9f, 0.2f, 200f, "1 vaso (~200ml)", imageUrl = "https://images.openfoodfacts.org/images/products/848/001/704/8666/front_es.20.200.jpg"),
         FoodCatalogItem("dia_queso_1", "Queso fresco batido 0% Día", "Día", 46f, 8.5f, 3.5f, 0.1f, 200f, "1 tazón (~200g)", imageUrl = "https://images.unsplash.com/photo-1488477181946-6428a0291777?w=200&q=80"),
-        FoodCatalogItem("dia_atun_1", "Atún claro al natural Día", "Día", 100f, 24f, 0f, 0.6f, 60f, "1 lata escurrida (~60g)", imageUrl = "https://images.openfoodfacts.net/images/products/848/001/704/6761/front_es.17.200.jpg"),
+        FoodCatalogItem("dia_atun_1", "Atún claro al natural Día", "Día", 100f, 24f, 0f, 0.6f, 60f, "1 lata escurrida (~60g)", imageUrl = "https://images.openfoodfacts.org/images/products/848/001/704/6761/front_es.17.200.jpg"),
         FoodCatalogItem("dia_avena_1", "Copos de avena integral Día", "Día", 372f, 13f, 58f, 7f, 50f, "1 ración (~50g)", imageUrl = "https://images.unsplash.com/photo-1586495777744-4413f21062fa?w=200&q=80"),
 
         // ─── ALCAMPO (FOTOS REALES DE PRODUCTO) ──────────────────────────────
-        FoodCatalogItem("alc_pan_1", "Pan 100% integral Auchan", "Alcampo", 235f, 9.2f, 41f, 2.7f, 40f, "1 rebanada (~40g)", imageUrl = "https://images.openfoodfacts.net/images/products/359/671/045/6368/front_es.16.200.jpg"),
+        FoodCatalogItem("alc_pan_1", "Pan 100% integral Auchan", "Alcampo", 235f, 9.2f, 41f, 2.7f, 40f, "1 rebanada (~40g)", imageUrl = "https://images.openfoodfacts.org/images/products/359/671/045/6368/front_es.16.200.jpg"),
         FoodCatalogItem("alc_pan_2", "Barra baguette Auchan", "Alcampo", 255f, 8.2f, 52f, 1.1f, 60f, "1 trozo (~60g)", imageUrl = "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=200&q=80"),
-        FoodCatalogItem("alc_pavo_1", "Pechuga de pavo Auchan", "Alcampo", 94f, 18f, 1.4f, 1.3f, 50f, "2 lonchas (~50g)", imageUrl = "https://images.openfoodfacts.net/images/products/359/671/047/5567/front_es.15.200.jpg"),
+        FoodCatalogItem("alc_pavo_1", "Pechuga de pavo Auchan", "Alcampo", 94f, 18f, 1.4f, 1.3f, 50f, "2 lonchas (~50g)", imageUrl = "https://images.openfoodfacts.org/images/products/359/671/047/5567/front_es.15.200.jpg"),
         FoodCatalogItem("alc_pollo_1", "Pechuga de pollo lonchas Auchan", "Alcampo", 95f, 19f, 1f, 1.5f, 50f, "2 lonchas (~50g)", imageUrl = "https://images.unsplash.com/photo-1604503468506-a8da13d82791?w=200&q=80"),
-        FoodCatalogItem("alc_leche_1", "Leche desnatada Auchan", "Alcampo", 34f, 3.2f, 4.8f, 0.2f, 200f, "1 vaso (~200ml)", imageUrl = "https://images.openfoodfacts.net/images/products/359/671/034/1800/front_es.18.200.jpg"),
+        FoodCatalogItem("alc_leche_1", "Leche desnatada Auchan", "Alcampo", 34f, 3.2f, 4.8f, 0.2f, 200f, "1 vaso (~200ml)", imageUrl = "https://images.openfoodfacts.org/images/products/359/671/034/1800/front_es.18.200.jpg"),
         FoodCatalogItem("alc_queso_1", "Queso fresco batido 0% Auchan", "Alcampo", 47f, 8.4f, 3.5f, 0.1f, 200f, "1 tazón (~200g)", imageUrl = "https://images.unsplash.com/photo-1488477181946-6428a0291777?w=200&q=80"),
         FoodCatalogItem("alc_atun_1", "Atún claro al natural Auchan", "Alcampo", 101f, 24f, 0f, 0.6f, 60f, "1 lata escurrida (~60g)", imageUrl = "https://images.unsplash.com/photo-1501595091296-3aa970afb3ff?w=200&q=80"),
 
         // ─── SUPERCOR / EL CORTE INGLÉS (FOTOS REALES) ────────────────────────
         FoodCatalogItem("sup_pan_1", "Pan de molde multicereales El Corte Inglés", "Supercor", 245f, 10.5f, 42f, 3.5f, 40f, "1 rebanada (~40g)", imageUrl = "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=200&q=80"),
-        FoodCatalogItem("sup_pavo_1", "Pechuga de pavo braseada El Corte Inglés", "Supercor", 98f, 19.5f, 1.2f, 1.6f, 50f, "2 lonchas (~50g)", imageUrl = "https://images.openfoodfacts.net/images/products/843/332/902/5253/front_es.12.200.jpg"),
+        FoodCatalogItem("sup_pavo_1", "Pechuga de pavo braseada El Corte Inglés", "Supercor", 98f, 19.5f, 1.2f, 1.6f, 50f, "2 lonchas (~50g)", imageUrl = "https://images.openfoodfacts.org/images/products/843/332/902/5253/front_es.12.200.jpg"),
         FoodCatalogItem("sup_pollo_1", "Pechuga de pollo a las finas hierbas El Corte Inglés", "Supercor", 99f, 20f, 1f, 1.5f, 50f, "2 lonchas (~50g)", imageUrl = "https://images.unsplash.com/photo-1604503468506-a8da13d82791?w=200&q=80"),
         FoodCatalogItem("sup_leche_1", "Leche semidesnatada El Corte Inglés", "Supercor", 46f, 3.2f, 4.8f, 1.6f, 200f, "1 vaso (~200ml)", imageUrl = "https://images.unsplash.com/photo-1550583724-b2692b85b150?w=200&q=80"),
         FoodCatalogItem("sup_queso_1", "Queso semicurado cuña El Corte Inglés", "Supercor", 380f, 25f, 1.2f, 31f, 40f, "1 porción (~40g)", imageUrl = "https://images.unsplash.com/photo-1486297678162-eb2a19b0a32d?w=200&q=80"),
@@ -528,7 +533,10 @@ class FoodCatalogService @Inject constructor(
                         servingDescription = obj.optString("servingDescription", "100g"),
                         imageUrl = obj.optString("imageUrl", "").takeIf { it.isNotBlank() },
                         barcode = obj.optString("barcode", "").takeIf { it.isNotBlank() },
-                        isGeneric = true
+                        isGeneric = true,
+                        fiberPer100g = obj.optDouble("fiberPer100g", 0.0).toFloat(),
+                        sugarPer100g = obj.optDouble("sugarPer100g", 0.0).toFloat(),
+                        saltPer100g = obj.optDouble("saltPer100g", 0.0).toFloat()
                     )
                 )
             }
@@ -568,6 +576,8 @@ class FoodCatalogService @Inject constructor(
                 normBrand.contains(token) -> score += 50
             }
         }
+        // Los alimentos genéricos (leche, manzana, plátano…) van primero si coinciden
+        if (score > 0 && item.isGeneric) score += 400
         return score
     }
 
@@ -711,6 +721,15 @@ class FoodCatalogService @Inject constructor(
                 b.contains("supercor") || b.contains("corte") || b.contains("hipercor") ||
                 n.contains("supercor") || n.contains("corte")
             }
+            FoodSourceCategory.LIDL -> items.filter {
+                val b = normalize(it.brand)
+                b.contains("lidl") || b.contains("milbona") || b.contains("pilos") ||
+                b.contains("solcon") || b.contains("deluxe") || normalize(it.name).contains("lidl")
+            }
+            FoodSourceCategory.EROSKI -> items.filter {
+                val b = normalize(it.brand)
+                b.contains("eroski") || normalize(it.name).contains("eroski")
+            }
             FoodSourceCategory.BASICOS -> items.filter {
                 it.isGeneric ||
                 normalize(it.brand).contains("basico") ||
@@ -726,8 +745,8 @@ class FoodCatalogService @Inject constructor(
      */
     private fun queryByBarcode(barcode: String): FoodCatalogItem? {
         val endpoints = listOf(
-            "https://world.openfoodfacts.net/api/v0/product/$barcode.json",
-            "https://es.openfoodfacts.net/api/v0/product/$barcode.json"
+            "https://world.openfoodfacts.org/api/v0/product/$barcode.json",
+            "https://es.openfoodfacts.org/api/v0/product/$barcode.json"
         )
         for (urlString in endpoints) {
             var connection: HttpURLConnection? = null
@@ -737,7 +756,7 @@ class FoodCatalogService @Inject constructor(
                     connectTimeout = 4000
                     readTimeout = 4000
                     requestMethod = "GET"
-                    setRequestProperty("User-Agent", "LifeDashboardApp/1.0 (contacto@lifedashboard.app)")
+                    setRequestProperty("User-Agent", "Halo/2.0 (Android)")
                 }
                 if (connection.responseCode == HttpURLConnection.HTTP_OK) {
                     val responseText = connection.inputStream.bufferedReader().use(BufferedReader::readText)
@@ -761,24 +780,31 @@ class FoodCatalogService @Inject constructor(
      */
     private fun queryOpenFoodFacts(query: String, category: FoodSourceCategory): List<FoodCatalogItem> {
         val results = mutableListOf<FoodCatalogItem>()
-        val brandTag = when (category) {
-            FoodSourceCategory.MERCADONA -> "hacendado"
-            FoodSourceCategory.CARREFOUR -> "carrefour"
-            FoodSourceCategory.DIA -> "dia"
-            FoodSourceCategory.ALCAMPO -> "auchan"
-            FoodSourceCategory.SUPERCOR -> "el corte ingles"
-            else -> ""
+        // Filtro por marca propia o por tienda en Open Food Facts
+        val (tagType, tag) = when (category) {
+            FoodSourceCategory.MERCADONA -> "brands" to "hacendado"
+            FoodSourceCategory.CARREFOUR -> "brands" to "carrefour"
+            FoodSourceCategory.DIA -> "brands" to "dia"
+            FoodSourceCategory.ALCAMPO -> "brands" to "auchan"
+            FoodSourceCategory.SUPERCOR -> "brands" to "el corte ingles"
+            FoodSourceCategory.LIDL -> "stores" to "lidl"
+            FoodSourceCategory.EROSKI -> "brands" to "eroski"
+            else -> "" to ""
         }
 
         val endpoints = mutableListOf<String>()
         val encodedQuery = URLEncoder.encode(query, "UTF-8")
+        val base = "https://es.openfoodfacts.org/cgi/search.pl?action=process&json=1"
+        val spain = "&tagtype_1=countries&tag_contains_1=contains&tag_1=spain"
+        val fields = "&fields=code,product_name,product_name_es,brands,nutriments,serving_size,image_front_small_url,image_small_url"
 
-        if (brandTag.isNotBlank()) {
-            endpoints.add("https://es.openfoodfacts.net/cgi/search.pl?search_terms=$encodedQuery&tagtype_0=brands&tag_contains_0=contains&tag_0=$brandTag&action=process&json=1&page_size=40")
-            endpoints.add("https://es.openfoodfacts.net/cgi/search.pl?search_terms=${URLEncoder.encode("$query $brandTag", "UTF-8")}&search_simple=1&action=process&json=1&page_size=35")
+        if (tag.isNotBlank()) {
+            endpoints.add("$base&search_terms=$encodedQuery&tagtype_0=$tagType&tag_contains_0=contains&tag_0=${URLEncoder.encode(tag, "UTF-8")}&page_size=40$fields")
+            endpoints.add("$base&search_terms=${URLEncoder.encode("$query $tag", "UTF-8")}&search_simple=1&page_size=35$fields")
         } else {
-            endpoints.add("https://es.openfoodfacts.net/cgi/search.pl?search_terms=$encodedQuery&search_simple=1&action=process&json=1&page_size=40")
-            endpoints.add("https://world.openfoodfacts.net/cgi/search.pl?search_terms=$encodedQuery&search_simple=1&action=process&json=1&page_size=35")
+            // Primero productos vendidos en España; si hay pocos, búsqueda general
+            endpoints.add("$base&search_terms=$encodedQuery&search_simple=1&page_size=40$spain$fields")
+            endpoints.add("$base&search_terms=$encodedQuery&search_simple=1&page_size=35$fields")
         }
 
         for (urlString in endpoints) {
@@ -789,7 +815,7 @@ class FoodCatalogService @Inject constructor(
                     connectTimeout = 4000
                     readTimeout = 4000
                     requestMethod = "GET"
-                    setRequestProperty("User-Agent", "LifeDashboardApp/1.0 (contacto@lifedashboard.app)")
+                    setRequestProperty("User-Agent", "Halo/2.0 (Android)")
                 }
 
                 if (connection.responseCode == HttpURLConnection.HTTP_OK) {
@@ -831,6 +857,9 @@ class FoodCatalogService @Inject constructor(
         var carbs = 0f
         var fat = 0f
         var alcohol = 0f
+        var fiber = 0f
+        var sugar = 0f
+        var salt = 0f
 
         if (nutriments != null) {
             kcal = nutriments.optDouble("energy-kcal_100g", -1.0).toFloat()
@@ -851,6 +880,9 @@ class FoodCatalogService @Inject constructor(
             carbs = nutriments.optDouble("carbohydrates_100g", nutriments.optDouble("carbohydrates", 0.0)).toFloat().coerceAtLeast(0f)
             fat = nutriments.optDouble("fat_100g", nutriments.optDouble("fat", 0.0)).toFloat().coerceAtLeast(0f)
             alcohol = nutriments.optDouble("alcohol_100g", nutriments.optDouble("alcohol", 0.0)).toFloat().coerceAtLeast(0f)
+            fiber = nutriments.optDouble("fiber_100g", 0.0).toFloat().coerceAtLeast(0f)
+            sugar = nutriments.optDouble("sugars_100g", 0.0).toFloat().coerceAtLeast(0f)
+            salt = nutriments.optDouble("salt_100g", 0.0).toFloat().coerceAtLeast(0f)
 
             if (kcal <= 0f && (protein > 0f || carbs > 0f || fat > 0f || alcohol > 0f)) {
                 kcal = (protein * 4f) + (carbs * 4f) + (fat * 9f) + (alcohol * 7f)
@@ -889,7 +921,10 @@ class FoodCatalogService @Inject constructor(
             servingDescription = servingStr,
             barcode = code.takeIf { it.isNotBlank() },
             imageUrl = resolvedImg,
-            isGeneric = false
+            isGeneric = false,
+            fiberPer100g = fiber,
+            sugarPer100g = sugar,
+            saltPer100g = salt
         )
     }
 

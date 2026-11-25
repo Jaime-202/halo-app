@@ -29,7 +29,11 @@ enum class MealSectionType(val key: String, val title: String, val iconEmoji: St
     COMIDA("COMIDA", "Comida", "🍲"),
     MERIENDA("MERIENDA", "Merienda", "☕"),
     CENA("CENA", "Cena", "🌙"),
-    SNACK("SNACK", "Snacks / Otros", "🍎")
+    SNACK("SNACK", "Snacks / Otros", "🍎");
+
+    companion object {
+        fun labelFor(key: String): String = entries.firstOrNull { it.key == key }?.title ?: "Comida"
+    }
 }
 
 data class CalculatedIntake(
@@ -96,8 +100,24 @@ data class NutritionUiState(
     val geminiModel: String = "gemini-3.8-flash",
     val isTestingApiKey: Boolean = false,
     val apiKeyTestMessage: String? = null,
-    val apiKeyTestSuccess: Boolean? = null
+    val apiKeyTestSuccess: Boolean? = null,
+
+    // Biblioteca: favoritos, recientes y comidas guardadas
+    val favorites: List<FoodCatalogItem> = emptyList(),
+    val favoriteKeys: Set<String> = emptySet(),
+    val recents: List<FoodCatalogItem> = emptyList(),
+    val savedMeals: List<com.lifedashboard.data.local.entity.SavedMealEntity> = emptyList(),
+
+    // Lectura de etiqueta nutricional
+    val isReadingLabel: Boolean = false,
+    val labelValues: com.lifedashboard.domain.food.LabelValues? = null,
+    val labelMealType: String = "COMIDA",
+    val libraryMessage: String? = null
 ) {
+    val totalFiber: Float get() = meals.sumOf { it.fiber.toDouble() }.toFloat()
+    val totalSugar: Float get() = meals.sumOf { it.sugar.toDouble() }.toFloat()
+    val totalSalt: Float get() = meals.sumOf { it.salt.toDouble() }.toFloat()
+
     val totalCalories: Float get() = meals.sumOf { it.calories.toDouble() }.toFloat()
     val totalProtein: Float get() = meals.sumOf { it.protein.toDouble() }.toFloat()
     val totalCarbs: Float get() = meals.sumOf { it.carbs.toDouble() }.toFloat()
@@ -119,6 +139,7 @@ class NutritionViewModel @Inject constructor(
     private val userPreferences: UserPreferencesRepository,
     private val weightDao: WeightDao,
     private val healthDao: HealthDao,
+    private val foodLibraryDao: com.lifedashboard.data.local.dao.FoodLibraryDao,
     @dagger.hilt.android.qualifiers.ApplicationContext private val context: android.content.Context
 ) : ViewModel() {
 
@@ -313,12 +334,241 @@ class NutritionViewModel @Inject constructor(
                 protein = protein,
                 carbs = carbs,
                 fat = fat,
-                imageUrl = RealFoodImageResolver.resolve(item.name, item.brand, item.imageUrl)
+                imageUrl = RealFoodImageResolver.resolve(item.name, item.brand, item.imageUrl),
+                fiber = item.fiberPer100g * factor,
+                sugar = item.sugarPer100g * factor,
+                salt = item.saltPer100g * factor
             )
             repository.insertMeal(entry)
             delay(200)
             requestNutritionAdvice()
         }
+    }
+
+    // ─── Biblioteca: favoritos, recientes, comidas guardadas ──────────────────
+
+    init {
+        foodLibraryDao.observeFavorites()
+            .onEach { list ->
+                _uiState.update { st ->
+                    st.copy(
+                        favorites = list.map { it.toCatalogItem() },
+                        favoriteKeys = list.map { it.key }.toSet()
+                    )
+                }
+            }
+            .launchIn(viewModelScope)
+
+        foodLibraryDao.observeSavedMeals()
+            .onEach { list -> _uiState.update { it.copy(savedMeals = list) } }
+            .launchIn(viewModelScope)
+
+        foodLibraryDao.observeRecentEntries()
+            .onEach { entries ->
+                val recents = entries
+                    .filter { it.grams > 0f && it.brand != "Manual" }
+                    .distinctBy { foodKey(it.name, it.brand) }
+                    .take(15)
+                    .map { it.toPer100CatalogItem() }
+                _uiState.update { it.copy(recents = recents) }
+            }
+            .launchIn(viewModelScope)
+    }
+
+    fun isFavorite(item: FoodCatalogItem): Boolean = foodKey(item.name, item.brand) in _uiState.value.favoriteKeys
+
+    fun toggleFavorite(item: FoodCatalogItem) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val key = foodKey(item.name, item.brand)
+            if (key in _uiState.value.favoriteKeys) {
+                foodLibraryDao.deleteFavorite(key)
+            } else {
+                foodLibraryDao.upsertFavorite(
+                    com.lifedashboard.data.local.entity.FavoriteFoodEntity(
+                        key = key,
+                        name = item.name,
+                        brand = item.brand,
+                        caloriesPer100g = item.caloriesPer100g,
+                        proteinPer100g = item.proteinPer100g,
+                        carbsPer100g = item.carbsPer100g,
+                        fatPer100g = item.fatPer100g,
+                        fiberPer100g = item.fiberPer100g,
+                        sugarPer100g = item.sugarPer100g,
+                        saltPer100g = item.saltPer100g,
+                        servingSizeGrams = item.servingSizeGrams,
+                        servingDescription = item.servingDescription,
+                        imageUrl = item.imageUrl,
+                        barcode = item.barcode
+                    )
+                )
+            }
+        }
+    }
+
+    /** Guarda los alimentos de un momento del día como comida reutilizable. */
+    fun saveMealGroup(mealType: String, name: String) {
+        val items = _uiState.value.mealsForType(mealType)
+        if (items.isEmpty()) return
+        viewModelScope.launch(Dispatchers.IO) {
+            val array = org.json.JSONArray()
+            items.forEach { m ->
+                array.put(
+                    org.json.JSONObject()
+                        .put("name", m.name).put("brand", m.brand).put("grams", m.grams.toDouble())
+                        .put("calories", m.calories.toDouble()).put("protein", m.protein.toDouble())
+                        .put("carbs", m.carbs.toDouble()).put("fat", m.fat.toDouble())
+                        .put("fiber", m.fiber.toDouble()).put("sugar", m.sugar.toDouble())
+                        .put("salt", m.salt.toDouble()).put("imageUrl", m.imageUrl ?: "")
+                )
+            }
+            foodLibraryDao.insertSavedMeal(
+                com.lifedashboard.data.local.entity.SavedMealEntity(
+                    name = name.ifBlank { MealSectionType.labelFor(mealType) },
+                    itemsJson = array.toString(),
+                    totalCalories = items.sumOf { it.calories.toDouble() }.toFloat()
+                )
+            )
+            _uiState.update { it.copy(libraryMessage = "Comida guardada") }
+        }
+    }
+
+    /** Añade todos los alimentos de una comida guardada al día seleccionado. */
+    fun addSavedMeal(saved: com.lifedashboard.data.local.entity.SavedMealEntity, mealType: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val dateMillis = _uiState.value.selectedDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+            val array = org.json.JSONArray(saved.itemsJson)
+            val entries = (0 until array.length()).map { i ->
+                val o = array.getJSONObject(i)
+                MealEntryEntity(
+                    dateMillis = dateMillis,
+                    mealType = mealType,
+                    name = o.optString("name"),
+                    brand = o.optString("brand"),
+                    grams = o.optDouble("grams", 100.0).toFloat(),
+                    calories = o.optDouble("calories", 0.0).toFloat(),
+                    protein = o.optDouble("protein", 0.0).toFloat(),
+                    carbs = o.optDouble("carbs", 0.0).toFloat(),
+                    fat = o.optDouble("fat", 0.0).toFloat(),
+                    fiber = o.optDouble("fiber", 0.0).toFloat(),
+                    sugar = o.optDouble("sugar", 0.0).toFloat(),
+                    salt = o.optDouble("salt", 0.0).toFloat(),
+                    imageUrl = o.optString("imageUrl").takeIf { it.isNotBlank() }
+                )
+            }
+            repository.insertMeals(entries)
+            _uiState.update { it.copy(libraryMessage = "${saved.name} añadida") }
+        }
+    }
+
+    fun deleteSavedMeal(id: Long) {
+        viewModelScope.launch(Dispatchers.IO) { foodLibraryDao.deleteSavedMeal(id) }
+    }
+
+    /** Copia todas las comidas del día anterior al día seleccionado. */
+    fun copyPreviousDay() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val zone = ZoneId.systemDefault()
+            val target = _uiState.value.selectedDate
+            val prev = target.minusDays(1)
+            val prevStart = prev.atStartOfDay(zone).toInstant().toEpochMilli()
+            val prevEnd = target.atStartOfDay(zone).toInstant().toEpochMilli() - 1
+            val targetMillis = target.atStartOfDay(zone).toInstant().toEpochMilli()
+            val source = foodLibraryDaoMealsBetween(prevStart, prevEnd)
+            if (source.isEmpty()) {
+                _uiState.update { it.copy(libraryMessage = "Ayer no hay comidas registradas") }
+                return@launch
+            }
+            val now = System.currentTimeMillis()
+            repository.insertMeals(source.map { it.copy(id = 0, dateMillis = targetMillis, createdAt = now) })
+            _uiState.update { it.copy(libraryMessage = "${source.size} alimentos copiados de ayer") }
+        }
+    }
+
+    private suspend fun foodLibraryDaoMealsBetween(start: Long, end: Long) =
+        repository.mealsBetween(start, end)
+
+    fun consumeLibraryMessage() = _uiState.update { it.copy(libraryMessage = null) }
+
+    // ─── Lectura de etiqueta nutricional ──────────────────────────────────────
+
+    fun readNutritionLabel(bitmap: Bitmap, mealType: String) {
+        _uiState.update { it.copy(isReadingLabel = true, labelMealType = mealType, labelValues = null) }
+        val recognizer = com.google.mlkit.vision.text.TextRecognition.getClient(
+            com.google.mlkit.vision.text.latin.TextRecognizerOptions.DEFAULT_OPTIONS
+        )
+        recognizer.process(com.google.mlkit.vision.common.InputImage.fromBitmap(bitmap, 0))
+            .addOnSuccessListener { result ->
+                val values = com.lifedashboard.domain.food.NutritionLabelParser.parse(result.text)
+                _uiState.update {
+                    it.copy(
+                        isReadingLabel = false,
+                        labelValues = values,
+                        libraryMessage = if (values.foundCount == 0) "No se ha podido leer la etiqueta. Escribe los valores a mano." else null
+                    )
+                }
+                recognizer.close()
+            }
+            .addOnFailureListener {
+                _uiState.update {
+                    it.copy(
+                        isReadingLabel = false,
+                        labelValues = com.lifedashboard.domain.food.LabelValues(),
+                        libraryMessage = "No se ha podido leer la etiqueta. Escribe los valores a mano."
+                    )
+                }
+                recognizer.close()
+            }
+    }
+
+    fun dismissLabel() = _uiState.update { it.copy(labelValues = null, isReadingLabel = false) }
+
+    /** Registra un producto leído de su etiqueta (valores por 100 g) y lo guarda en favoritos. */
+    fun addFromLabel(item: FoodCatalogItem, grams: Float, saveAsFavorite: Boolean) {
+        val mealType = _uiState.value.labelMealType
+        addFoodFromCatalog(item, grams, mealType)
+        if (saveAsFavorite && foodKey(item.name, item.brand) !in _uiState.value.favoriteKeys) toggleFavorite(item)
+        dismissLabel()
+    }
+
+    private fun com.lifedashboard.data.local.entity.FavoriteFoodEntity.toCatalogItem() = FoodCatalogItem(
+        id = "fav_$key",
+        name = name,
+        brand = brand,
+        caloriesPer100g = caloriesPer100g,
+        proteinPer100g = proteinPer100g,
+        carbsPer100g = carbsPer100g,
+        fatPer100g = fatPer100g,
+        servingSizeGrams = servingSizeGrams,
+        servingDescription = servingDescription,
+        barcode = barcode,
+        imageUrl = imageUrl,
+        fiberPer100g = fiberPer100g,
+        sugarPer100g = sugarPer100g,
+        saltPer100g = saltPer100g
+    )
+
+    private fun MealEntryEntity.toPer100CatalogItem(): FoodCatalogItem {
+        val f = if (grams > 0f) 100f / grams else 1f
+        return FoodCatalogItem(
+            id = "rec_${foodKey(name, brand)}",
+            name = name,
+            brand = brand,
+            caloriesPer100g = calories * f,
+            proteinPer100g = protein * f,
+            carbsPer100g = carbs * f,
+            fatPer100g = fat * f,
+            servingSizeGrams = grams,
+            servingDescription = "Última vez: ${grams.toInt()} g",
+            imageUrl = imageUrl,
+            fiberPer100g = fiber * f,
+            sugarPer100g = sugar * f,
+            saltPer100g = salt * f
+        )
+    }
+
+    companion object {
+        fun foodKey(name: String, brand: String): String =
+            "${name.trim().lowercase()}|${brand.trim().lowercase()}"
     }
 
     fun deleteMeal(mealId: Long) {
@@ -337,7 +587,10 @@ class NutritionViewModel @Inject constructor(
             calories = (meal.calories * ratio).coerceAtLeast(0f),
             protein = (meal.protein * ratio).coerceAtLeast(0f),
             carbs = (meal.carbs * ratio).coerceAtLeast(0f),
-            fat = (meal.fat * ratio).coerceAtLeast(0f)
+            fat = (meal.fat * ratio).coerceAtLeast(0f),
+            fiber = (meal.fiber * ratio).coerceAtLeast(0f),
+            sugar = (meal.sugar * ratio).coerceAtLeast(0f),
+            salt = (meal.salt * ratio).coerceAtLeast(0f)
         )
         viewModelScope.launch(Dispatchers.IO) {
             repository.insertMeal(updated)

@@ -86,6 +86,17 @@ object DatabaseModule {
         }
     }
 
+    /** v9: fibra, azúcar y sal en comidas; favoritos y comidas guardadas. */
+    private val MIGRATION_8_9 = object : Migration(8, 9) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE `meals` ADD COLUMN `fiber` REAL NOT NULL DEFAULT 0")
+            db.execSQL("ALTER TABLE `meals` ADD COLUMN `sugar` REAL NOT NULL DEFAULT 0")
+            db.execSQL("ALTER TABLE `meals` ADD COLUMN `salt` REAL NOT NULL DEFAULT 0")
+            db.execSQL("CREATE TABLE IF NOT EXISTS `favorite_foods` (`key` TEXT NOT NULL, `name` TEXT NOT NULL, `brand` TEXT NOT NULL, `caloriesPer100g` REAL NOT NULL, `proteinPer100g` REAL NOT NULL, `carbsPer100g` REAL NOT NULL, `fatPer100g` REAL NOT NULL, `fiberPer100g` REAL NOT NULL, `sugarPer100g` REAL NOT NULL, `saltPer100g` REAL NOT NULL, `servingSizeGrams` REAL NOT NULL, `servingDescription` TEXT NOT NULL, `imageUrl` TEXT, `barcode` TEXT, `createdAt` INTEGER NOT NULL, PRIMARY KEY(`key`))")
+            db.execSQL("CREATE TABLE IF NOT EXISTS `saved_meals` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `itemsJson` TEXT NOT NULL, `totalCalories` REAL NOT NULL, `createdAt` INTEGER NOT NULL)")
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase =
@@ -94,7 +105,7 @@ object DatabaseModule {
             AppDatabase::class.java,
             "life_dashboard.db"
         )
-            .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
+            .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
             .fallbackToDestructiveMigration()
             .fallbackToDestructiveMigrationOnDowngrade()
             .build()
@@ -107,4 +118,5 @@ object DatabaseModule {
     @Provides fun provideWeightDao(db: AppDatabase): WeightDao = db.weightDao()
     @Provides fun provideMealDao(db: AppDatabase): MealDao = db.mealDao()
     @Provides fun provideReminderDao(db: AppDatabase): ReminderDao = db.reminderDao()
+    @Provides fun provideFoodLibraryDao(db: AppDatabase): FoodLibraryDao = db.foodLibraryDao()
 }
