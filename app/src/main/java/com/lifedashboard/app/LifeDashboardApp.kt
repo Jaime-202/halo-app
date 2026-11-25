@@ -28,6 +28,7 @@ class LifeDashboardApp : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
+        com.lifedashboard.core.crash.CrashReporter.install(this)
         try {
             WorkManager.initialize(this, workManagerConfiguration)
         } catch (e: Exception) {

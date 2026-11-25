@@ -1,0 +1,17 @@
+CREATE TABLE IF NOT EXISTS `health_data` (`dateMillis` INTEGER NOT NULL, `steps` INTEGER NOT NULL, `distanceMeters` REAL NOT NULL, `activeCalories` REAL NOT NULL, `sleepHours` REAL NOT NULL, `sleepDeepHours` REAL NOT NULL, `sleepRemHours` REAL NOT NULL, `syncedAt` INTEGER NOT NULL, PRIMARY KEY(`dateMillis`));
+CREATE TABLE IF NOT EXISTS `workout_sessions` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `dateMillis` INTEGER NOT NULL, `type` TEXT NOT NULL, `durationMinutes` INTEGER NOT NULL, `notes` TEXT, `sourceFile` TEXT, `muscleGroupAllocation` TEXT);
+CREATE TABLE IF NOT EXISTS `exercise_sets` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `sessionId` INTEGER NOT NULL, `exerciseName` TEXT NOT NULL, `setNumber` INTEGER NOT NULL, `reps` INTEGER NOT NULL, `weightKg` REAL NOT NULL, `volumeKg` REAL NOT NULL, `rpe` REAL, FOREIGN KEY(`sessionId`) REFERENCES `workout_sessions`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE );
+CREATE INDEX IF NOT EXISTS `index_exercise_sets_sessionId` ON `exercise_sets` (`sessionId`);
+CREATE TABLE IF NOT EXISTS `calendar_events` (`id` INTEGER NOT NULL, `title` TEXT NOT NULL, `description` TEXT, `location` TEXT, `startTimeMillis` INTEGER NOT NULL, `endTimeMillis` INTEGER NOT NULL, `isAllDay` INTEGER NOT NULL, `calendarDisplayName` TEXT NOT NULL, `calendarColor` INTEGER NOT NULL, `eventColor` INTEGER, `syncedAt` INTEGER NOT NULL, PRIMARY KEY(`id`));
+CREATE TABLE IF NOT EXISTS `water_intake` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `dateMillis` INTEGER NOT NULL, `timestampMillis` INTEGER NOT NULL, `amountMl` INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS `achievements` (`id` TEXT NOT NULL, `title` TEXT NOT NULL, `description` TEXT NOT NULL, `category` TEXT NOT NULL, `iconName` TEXT NOT NULL, `unlockedAt` INTEGER, `progress` REAL NOT NULL, `targetValue` REAL NOT NULL, PRIMARY KEY(`id`));
+CREATE TABLE IF NOT EXISTS `weight_entries` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `dateMillis` INTEGER NOT NULL, `weightKg` REAL NOT NULL, `note` TEXT);
+CREATE TABLE IF NOT EXISTS `meals` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `dateMillis` INTEGER NOT NULL, `mealType` TEXT NOT NULL, `name` TEXT NOT NULL, `brand` TEXT NOT NULL, `grams` REAL NOT NULL, `calories` REAL NOT NULL, `protein` REAL NOT NULL, `carbs` REAL NOT NULL, `fat` REAL NOT NULL, `notes` TEXT NOT NULL, `imageUrl` TEXT, `createdAt` INTEGER NOT NULL);
+CREATE INDEX IF NOT EXISTS `index_meals_dateMillis` ON `meals` (`dateMillis`);
+CREATE INDEX IF NOT EXISTS `index_meals_mealType` ON `meals` (`mealType`);
+CREATE TABLE IF NOT EXISTS `reminders` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `title` TEXT NOT NULL, `type` TEXT NOT NULL, `daysOfWeek` TEXT NOT NULL, `timeOfDay` TEXT NOT NULL, `iconEmoji` TEXT NOT NULL, `isEnabled` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS `reminder_logs` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `reminderId` INTEGER NOT NULL, `dateMillis` INTEGER NOT NULL, `isCompleted` INTEGER NOT NULL, `completedAt` INTEGER NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS `index_reminder_logs_reminderId_dateMillis` ON `reminder_logs` (`reminderId`, `dateMillis`);
+CREATE INDEX IF NOT EXISTS `index_reminder_logs_dateMillis` ON `reminder_logs` (`dateMillis`);
+CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT);
+INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'be381362e2938dad9fd9ab0406840177');

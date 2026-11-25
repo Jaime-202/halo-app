@@ -7,6 +7,8 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.unit.sp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -65,6 +67,7 @@ class MainActivity : ComponentActivity() {
                 enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
             }
             LifeDashboardTheme(themeMode = themeMode) {
+                CrashNoticeDialog()
                 val loaded = goals
                 when {
                     loaded == null -> Box(Modifier.fillMaxSize().background(Obsidian))
@@ -192,4 +195,42 @@ private fun LifeDashboardApp() {
             NavGraph(navController = navController)
         }
     }
+}
+
+
+/** Si la app se cerró por un error, lo muestra al volver a abrirla para poder copiarlo. */
+@Composable
+private fun CrashNoticeDialog() {
+    val context = LocalContext.current
+    var crash by remember { mutableStateOf(com.lifedashboard.core.crash.CrashReporter.lastCrash(context)) }
+    val text = crash ?: return
+    AlertDialog(
+        onDismissRequest = {},
+        containerColor = Panel,
+        title = { Text("Halo se cerró la última vez", color = TextHigh) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Copia este texto y pásalo para poder arreglarlo.", color = TextMute, style = MaterialTheme.typography.bodySmall)
+                Box(
+                    Modifier.heightIn(max = 320.dp).fillMaxWidth().clip(RoundedCornerShape(8.dp))
+                        .background(PanelHigh).verticalScroll(androidx.compose.foundation.rememberScrollState()).padding(8.dp)
+                ) {
+                    Text(text, color = TextHigh, style = androidx.compose.ui.text.TextStyle(fontFamily = MonoFamily, fontSize = 10.sp))
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                val cm = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                cm.setPrimaryClip(android.content.ClipData.newPlainText("Error de Halo", text))
+                android.widget.Toast.makeText(context, "Copiado", android.widget.Toast.LENGTH_SHORT).show()
+            }) { Text("Copiar", color = Ion) }
+        },
+        dismissButton = {
+            TextButton(onClick = {
+                com.lifedashboard.core.crash.CrashReporter.clear(context)
+                crash = null
+            }) { Text("Cerrar", color = TextMute) }
+        },
+    )
 }

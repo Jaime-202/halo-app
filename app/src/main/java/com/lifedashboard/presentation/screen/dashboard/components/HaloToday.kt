@@ -40,6 +40,10 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlin.math.roundToInt
 
+/** Redondeo que no falla con valores no numéricos (NaN) ni infinitos. */
+private fun Float.safeRound(): Int = if (isNaN()) 0 else roundToInt()
+private fun Float.finiteOr0(): Float = if (isNaN() || isInfinite()) 0f else this
+
 private val mono11 = TextStyle(fontFamily = MonoFamily, fontSize = 11.sp, letterSpacing = 1.2.sp)
 
 // ─── Cálculos de la pantalla ─────────────────────────────────────────────────
@@ -58,8 +62,8 @@ fun todayNumbers(state: DashboardUiState): TodayNumbers {
     val dayFraction = (LocalTime.now().toSecondOfDay() / 86_400f).coerceIn(0.05f, 1f)
     val expenditure = if (state.bmrKcal > 0f) EnergyCalculator.expenditureForDay(
         state.bmrKcal, state.tdeeKcal, state.todayCalories, dayFraction
-    ) else 0f
-    val intake = state.todayMealsCalories
+    ).finiteOr0() else 0f
+    val intake = state.todayMealsCalories.finiteOr0()
     val balance = EnergyCalculator.balance(intake, expenditure)
     val done = state.todayReminders.count { it.isCompleted }
     return TodayNumbers(
@@ -93,14 +97,14 @@ fun todayInsight(state: DashboardUiState, n: TodayNumbers): String? {
         val level = HaloScores.recoveryLevel(r)
         if (hour < 14) return "Recuperación $r. ${level.advice}."
     }
-    val proteinLeft = (state.proteinTargetG - state.todayProteinG).roundToInt()
+    val proteinLeft = (state.proteinTargetG - state.todayProteinG).safeRound()
     if (hour >= 14 && proteinLeft > 25 && state.proteinTargetG > 0f) return "Te faltan $proteinLeft g de proteína para tu objetivo."
     if (state.todaySleepHours in 0.5f..(state.sleepTargetHours - 1f)) {
         return "Has dormido ${"%.1f".format(state.todaySleepHours)} h. Intenta acostarte un poco antes hoy."
     }
     val stepsLeft = state.stepsTarget - state.todaySteps
     if (hour >= 17 && stepsLeft in 1..3000) return "Te faltan ${stepsLeft} pasos: un paseo de ${(stepsLeft / 100).coerceAtLeast(5)} minutos y lo tienes."
-    if (n.intake > 0f && n.balanceState == BalanceState.DEFICIT) return "Vas en déficit de ${(-n.balance).roundToInt()} kcal. Sigue así."
+    if (n.intake > 0f && n.balanceState == BalanceState.DEFICIT) return "Vas en déficit de ${(-n.balance).safeRound()} kcal. Sigue así."
     return null
 }
 
@@ -160,7 +164,7 @@ fun HaloHeroCard(state: DashboardUiState, n: TodayNumbers, onClick: () -> Unit) 
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text("BALANCE HOY", color = TextMute, style = mono11)
                 // El número cuenta hasta su valor al abrir
-                val shown by androidx.compose.animation.core.animateIntAsState(n.balance.roundToInt(), androidx.compose.animation.core.tween(900), label = "balance")
+                val shown by androidx.compose.animation.core.animateIntAsState(n.balance.safeRound(), androidx.compose.animation.core.tween(900), label = "balance")
                 Text(
                     text = if (n.intake <= 0f) "—" else (if (shown > 0) "+" else "") + shown,
                     style = MaterialTheme.typography.headlineLarge,
@@ -177,7 +181,7 @@ fun HaloHeroCard(state: DashboardUiState, n: TodayNumbers, onClick: () -> Unit) 
                     style = MaterialTheme.typography.bodySmall,
                 )
                 Spacer(Modifier.height(6.dp))
-                Text("${n.remaining.roundToInt()} kcal", color = TextHigh, style = TextStyle(fontFamily = MonoFamily, fontSize = 14.sp))
+                Text("${n.remaining.safeRound()} kcal", color = TextHigh, style = TextStyle(fontFamily = MonoFamily, fontSize = 14.sp))
                 Text("te quedan por comer", color = TextMute, style = MaterialTheme.typography.labelSmall)
             }
         }
@@ -240,7 +244,7 @@ private fun HaloBar(label: String, value: Float, max: Float, color: Color) {
             Box(Modifier.fillMaxWidth((value / max).coerceIn(0f, 1f)).fillMaxHeight().clip(RoundedCornerShape(2.dp)).background(color))
         }
         Text(
-            value.roundToInt().toString(),
+            value.safeRound().toString(),
             color = TextHigh,
             style = TextStyle(fontFamily = MonoFamily, fontSize = 12.sp),
             modifier = Modifier.width(52.dp),
@@ -272,14 +276,14 @@ private data class TileData(val value: String, val unit: String, val progress: F
 private fun tileData(metric: HomeMetric, s: DashboardUiState): TileData = when (metric) {
     HomeMetric.PASOS -> TileData("%,d".format(Locale("es", "ES"), s.todaySteps), "", s.stepsProgress, Ion)
     HomeMetric.SUENO -> {
-        val h = s.todaySleepHours.toInt(); val m = ((s.todaySleepHours - h) * 60).roundToInt()
+        val h = s.todaySleepHours.toInt(); val m = ((s.todaySleepHours - h) * 60).safeRound()
         TileData(if (s.todaySleepHours > 0f) "${h}h ${m}" else "—", "", s.sleepProgress, Flux)
     }
-    HomeMetric.PROTEINA -> TileData(s.todayProteinG.roundToInt().toString(), "g", if (s.proteinTargetG > 0f) (s.todayProteinG / s.proteinTargetG).coerceIn(0f, 1f) else null, Ion)
+    HomeMetric.PROTEINA -> TileData(s.todayProteinG.safeRound().toString(), "g", if (s.proteinTargetG > 0f) (s.todayProteinG / s.proteinTargetG).coerceIn(0f, 1f) else null, Ion)
     HomeMetric.AGUA -> TileData("%.1f".format(Locale("es", "ES"), s.todayWaterMl / 1000f), "L", if (s.waterTargetMl > 0) (s.todayWaterMl.toFloat() / s.waterTargetMl).coerceIn(0f, 1f) else null, Flux)
     HomeMetric.PESO -> TileData(s.latestWeightKg?.let { "%.1f".format(Locale("es", "ES"), it) } ?: "—", "kg", null, Ion)
     HomeMetric.ACTIVIDAD -> TileData(s.weeklyActiveMinutes.toString(), "min", null, Ion)
-    HomeMetric.KCAL_ACTIVAS -> TileData(s.todayCalories.roundToInt().toString(), "kcal", s.caloriesProgress, Ion)
+    HomeMetric.KCAL_ACTIVAS -> TileData(s.todayCalories.safeRound().toString(), "kcal", s.caloriesProgress, Ion)
     HomeMetric.PULSO -> TileData(if (s.restingHr > 0) s.restingHr.toString() else "—", "lpm", null, Flux)
 }
 

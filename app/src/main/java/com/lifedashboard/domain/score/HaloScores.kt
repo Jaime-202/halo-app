@@ -47,6 +47,7 @@ object HaloScores {
             parts += (1f - ((dev - 0.10f) / 0.40f).coerceIn(0f, 1f))
         }
         if (d.remindersTotal > 0) parts += d.remindersDone.toFloat() / d.remindersTotal
+        parts.removeAll { it.isNaN() || it.isInfinite() }
         if (parts.isEmpty()) return null
         return (parts.average() * 100).roundToInt().coerceIn(0, 100)
     }
@@ -70,6 +71,7 @@ object HaloScores {
             val rel = ((r.restingHrBaseline - r.restingHr) / (r.restingHrBaseline * 0.08f)).coerceIn(-1f, 1f)
             parts += (0.5f + 0.5f * rel) to 0.25f
         }
+        parts.removeAll { it.first.isNaN() || it.first.isInfinite() }
         if (parts.isEmpty()) return null
         val total = parts.sumOf { it.second.toDouble() }
         val value = parts.sumOf { (it.first * it.second).toDouble() } / total
