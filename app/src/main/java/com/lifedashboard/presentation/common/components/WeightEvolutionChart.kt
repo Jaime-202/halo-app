@@ -193,7 +193,7 @@ fun WeightEvolutionChart(
                 for (i in 0 until lineCount) {
                     val gy = paddingVertical + (availableHeight / (lineCount - 1)) * i
                     drawLine(
-                        color = Color(0x25FFFFFF),
+                        color = Line,
                         start = Offset(0f, gy),
                         end = Offset(w, gy),
                         strokeWidth = 1f,

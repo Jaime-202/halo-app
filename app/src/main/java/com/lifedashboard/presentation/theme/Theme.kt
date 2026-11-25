@@ -1,66 +1,52 @@
 package com.lifedashboard.presentation.theme
 
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.graphics.Color
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.remember
 
-/** Halo: tema principal, casi negro con acento Ion. */
-private val HaloColorScheme = darkColorScheme(
-    primary              = Ion,
-    onPrimary            = Obsidian,
-    primaryContainer     = PanelHigh,
-    onPrimaryContainer   = Ion,
+/** Elige la paleta según la preferencia: "CLARO", "SISTEMA", "AMOLED" o oscuro (por defecto). */
+@Composable
+fun paletteFor(themeMode: String): HaloPalette = when (themeMode) {
+    "CLARO" -> LightPalette
+    "SISTEMA" -> if (isSystemInDarkTheme()) DarkPalette else LightPalette
+    "AMOLED" -> AmoledPalette
+    else -> DarkPalette
+}
 
-    secondary            = Flux,
-    onSecondary          = Obsidian,
-    secondaryContainer   = PanelHigh,
-    onSecondaryContainer = Flux,
-
-    tertiary             = Teal400,
-    onTertiary           = Obsidian,
-    tertiaryContainer    = PanelHigh,
-    onTertiaryContainer  = Teal400,
-
-    background           = Obsidian,
-    onBackground         = TextHigh,
-
-    surface              = Panel,
-    onSurface            = TextHigh,
-    surfaceVariant       = PanelHigh,
-    onSurfaceVariant     = Gray300,
-    surfaceContainer     = Panel,
-    surfaceContainerHigh = PanelHigh,
-
-    outline              = LineStrong,
-    outlineVariant       = Line,
-
-    error                = Rose400,
-    onError              = Obsidian,
-
-    inverseSurface       = TextHigh,
-    inverseOnSurface     = Obsidian,
-    inversePrimary       = PanelHigh,
-)
-
-/** Variante AMOLED: negro puro para pantallas OLED. */
-private val AmoledColorScheme = HaloColorScheme.copy(
-    background       = Color.Black,
-    surface          = Color(0xFF0A0C0F),
-    surfaceContainer = Color(0xFF0A0C0F),
-)
+private fun schemeFor(p: HaloPalette): ColorScheme {
+    val base = if (p.isLight) lightColorScheme() else darkColorScheme()
+    return base.copy(
+        primary = p.ion, onPrimary = p.onAccent,
+        primaryContainer = p.panelHigh, onPrimaryContainer = p.ion,
+        secondary = p.flux, onSecondary = p.onAccent,
+        secondaryContainer = p.panelHigh, onSecondaryContainer = p.flux,
+        tertiary = p.sleep, onTertiary = p.onAccent,
+        tertiaryContainer = p.panelHigh, onTertiaryContainer = p.sleep,
+        background = p.bg, onBackground = p.textHigh,
+        surface = p.panel, onSurface = p.textHigh,
+        surfaceVariant = p.panelHigh, onSurfaceVariant = p.gray300,
+        surfaceContainer = p.panel, surfaceContainerHigh = p.panelHigh,
+        surfaceContainerLow = p.panel, surfaceContainerLowest = p.bg, surfaceContainerHighest = p.panelHigh,
+        outline = p.lineStrong, outlineVariant = p.line,
+        error = p.danger, onError = p.onAccent,
+        inverseSurface = p.textHigh, inverseOnSurface = p.bg, inversePrimary = p.panelHigh,
+    )
+}
 
 @Composable
 fun LifeDashboardTheme(
     themeMode: String = "OSCURO",
     content: @Composable () -> Unit
 ) {
-    val colorScheme = when (themeMode) {
-        "AMOLED" -> AmoledColorScheme
-        else     -> HaloColorScheme
-    }
+    val palette = paletteFor(themeMode)
+    // Los tokens de color leen esta paleta; al cambiar, se redibuja todo lo que los usa
+    SideEffect { if (HaloColors.palette != palette) HaloColors.palette = palette }
+    val scheme = remember(palette) { schemeFor(palette) }
 
     MaterialTheme(
-        colorScheme = colorScheme,
+        colorScheme = scheme,
         typography  = AppTypography,
         content     = content
     )

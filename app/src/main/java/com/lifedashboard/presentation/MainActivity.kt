@@ -55,7 +55,16 @@ class MainActivity : ComponentActivity() {
         setContent {
             // null hasta leer las preferencias, para no mostrar la bienvenida por error
             val goals by userPreferences.userGoals.collectAsState(initial = null as com.lifedashboard.data.repository.UserGoals?)
-            LifeDashboardTheme(themeMode = goals?.themeMode ?: "OSCURO") {
+            val themeMode = goals?.themeMode ?: "OSCURO"
+            val isLight = paletteFor(themeMode).isLight
+            // Iconos de la barra de estado oscuros en modo claro y claros en modo oscuro
+            LaunchedEffect(isLight) {
+                val transparent = android.graphics.Color.TRANSPARENT
+                val style = if (isLight) androidx.activity.SystemBarStyle.light(transparent, transparent)
+                            else androidx.activity.SystemBarStyle.dark(transparent)
+                enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
+            }
+            LifeDashboardTheme(themeMode = themeMode) {
                 val loaded = goals
                 when {
                     loaded == null -> Box(Modifier.fillMaxSize().background(Obsidian))
