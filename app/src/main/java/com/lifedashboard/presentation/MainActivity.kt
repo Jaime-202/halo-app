@@ -102,6 +102,7 @@ private fun LifeDashboardApp() {
     val quickLog: com.lifedashboard.presentation.quicklog.QuickLogViewModel = androidx.hilt.navigation.compose.hiltViewModel()
     var showQuickLog by remember { mutableStateOf(false) }
     var weightDialogKg by remember { mutableStateOf<Float?>(null) }
+    var showMoodDialog by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     if (showQuickLog) {
@@ -120,11 +121,27 @@ private fun LifeDashboardApp() {
                 showQuickLog = false
                 scope.launch { weightDialogKg = quickLog.currentWeight() }
             },
+            onMood = {
+                showQuickLog = false
+                showMoodDialog = true
+            },
             onWater = { ml ->
                 showQuickLog = false
                 quickLog.addWater(ml)
                 android.widget.Toast.makeText(context, "+$ml ml de agua", android.widget.Toast.LENGTH_SHORT).show()
             },
+        )
+    }
+    if (showMoodDialog) {
+        com.lifedashboard.presentation.common.components.MoodDialog(
+            initialMood = null,
+            initialEnergy = null,
+            onSave = { m, e ->
+                quickLog.saveMood(m, e)
+                showMoodDialog = false
+                android.widget.Toast.makeText(context, "Guardado", android.widget.Toast.LENGTH_SHORT).show()
+            },
+            onDismiss = { showMoodDialog = false },
         )
     }
     weightDialogKg?.let { kg ->

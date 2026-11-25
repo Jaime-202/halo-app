@@ -58,6 +58,7 @@ class QuickLogViewModel @Inject constructor(
     private val waterIntakeDao: WaterIntakeDao,
     private val prefs: UserPreferencesRepository,
     private val energyTargets: EnergyTargetsManager,
+    private val moodDao: com.lifedashboard.data.local.dao.MoodDao,
     @ApplicationContext private val context: android.content.Context,
 ) : ViewModel() {
 
@@ -69,6 +70,17 @@ class QuickLogViewModel @Inject constructor(
             prefs.updateWeight(kg)
             energyTargets.recalculate()
             WidgetUpdateWorker.updateAllWidgets(context)
+        }
+    }
+
+    fun saveMood(mood: Int, energy: Int) {
+        viewModelScope.launch(Dispatchers.IO) {
+            moodDao.upsert(
+                com.lifedashboard.data.local.entity.MoodEntryEntity(
+                    dateMillis = LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli(),
+                    mood = mood, energy = energy,
+                )
+            )
         }
     }
 
@@ -93,6 +105,7 @@ fun QuickLogSheet(
     onNutrition: (NutritionAction) -> Unit,
     onWeight: () -> Unit,
     onWater: (Int) -> Unit,
+    onMood: () -> Unit = {},
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(
@@ -122,6 +135,7 @@ fun QuickLogSheet(
                 QuickTile(Icons.Outlined.WaterDrop, "Agua +250 ml", Modifier.weight(1f)) { onWater(250) }
                 QuickTile(Icons.Outlined.LocalDrink, "Agua +500 ml", Modifier.weight(1f)) { onWater(500) }
             }
+            QuickTile(Icons.Outlined.SentimentSatisfied, "Ánimo y energía", Modifier.fillMaxWidth(), onMood)
         }
     }
 }

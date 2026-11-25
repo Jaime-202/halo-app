@@ -110,7 +110,8 @@ data class SettingsState(
     val waterTargetMl: Int = 2500,
     val bmrKcal: Float = 1750f,
     val tdeeKcal: Float = 2350f,
-    val reminders: List<ReminderEntity> = emptyList()
+    val reminders: List<ReminderEntity> = emptyList(),
+    val weeklySummary: Boolean = true
 )
 
 @HiltViewModel
@@ -171,6 +172,7 @@ class SettingsViewModel @Inject constructor(
                     carbsTargetGrams     = goals.carbsTargetGrams,
                     fatTargetGrams       = goals.fatTargetGrams,
                     waterTargetMl        = goals.waterTargetMl,
+                    weeklySummary        = goals.weeklySummary,
                     bmrKcal              = bmr,
                     tdeeKcal             = tdee
                 )
@@ -383,6 +385,13 @@ class SettingsViewModel @Inject constructor(
 
     fun toggleInactivityAlerts(enabled: Boolean) {
         viewModelScope.launch { userPreferences.updateInactivityAlerts(enabled) }
+    }
+
+    fun toggleWeeklySummary(enabled: Boolean) {
+        viewModelScope.launch {
+            userPreferences.updateWeeklySummary(enabled)
+            if (enabled) scheduler.scheduleWeeklySummary() else scheduler.cancelWeeklySummary()
+        }
     }
 
     fun toggleEveningReview(enabled: Boolean) {
@@ -861,6 +870,13 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                 subtitle        = "Notificación matutina con el resumen de tus metas",
                 checked         = state.dailyReminders,
                 onCheckedChange = { viewModel.toggleDailyReminders(it) }
+            )
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            SwitchSettingItem(
+                title           = "Resumen semanal",
+                subtitle        = "El domingo a las 20:00: tu semana y una conclusión de tus datos",
+                checked         = state.weeklySummary,
+                onCheckedChange = { viewModel.toggleWeeklySummary(it) }
             )
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             SwitchSettingItem(

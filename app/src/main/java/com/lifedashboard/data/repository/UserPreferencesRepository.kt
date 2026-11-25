@@ -52,7 +52,8 @@ data class UserGoals(
     val weightGoal: String = "MANTENER",           // ver WeightGoal
     val adaptiveTdeeKcal: Float = 0f,              // 0 = sin datos suficientes
     val onboardingCompleted: Boolean = false,
-    val homeMetrics: String = "PASOS,SUENO,PROTEINA,AGUA"   // 4 métricas de la pantalla Hoy
+    val homeMetrics: String = "PASOS,SUENO,PROTEINA,AGUA",  // 4 métricas de la pantalla Hoy
+    val weeklySummary: Boolean = true                         // resumen de los domingos
 )
 
 @Singleton
@@ -98,6 +99,7 @@ class UserPreferencesRepository @Inject constructor(
         val ADAPTIVE_TDEE          = floatPreferencesKey("adaptive_tdee")
         val ONBOARDING_DONE        = booleanPreferencesKey("onboarding_done")
         val HOME_METRICS           = stringPreferencesKey("home_metrics")
+        val WEEKLY_SUMMARY         = booleanPreferencesKey("weekly_summary")
     }
 
     val userGoals: Flow<UserGoals> = context.dataStore.data
@@ -147,7 +149,8 @@ class UserPreferencesRepository @Inject constructor(
                 weightGoal           = prefs[Keys.WEIGHT_GOAL] ?: "MANTENER",
                 adaptiveTdeeKcal     = prefs[Keys.ADAPTIVE_TDEE] ?: 0f,
                 onboardingCompleted  = prefs[Keys.ONBOARDING_DONE] ?: false,
-                homeMetrics          = prefs[Keys.HOME_METRICS] ?: "PASOS,SUENO,PROTEINA,AGUA"
+                homeMetrics          = prefs[Keys.HOME_METRICS] ?: "PASOS,SUENO,PROTEINA,AGUA",
+                weeklySummary        = prefs[Keys.WEEKLY_SUMMARY] ?: true
             )
         }
 
@@ -311,6 +314,10 @@ class UserPreferencesRepository @Inject constructor(
 
     suspend fun updateAdaptiveTdee(kcal: Float) {
         context.dataStore.edit { prefs -> prefs[Keys.ADAPTIVE_TDEE] = kcal }
+    }
+
+    suspend fun updateWeeklySummary(enabled: Boolean) {
+        context.dataStore.edit { prefs -> prefs[Keys.WEEKLY_SUMMARY] = enabled }
     }
 
     suspend fun updateHomeMetrics(metrics: List<String>) {

@@ -116,6 +116,13 @@ object DatabaseModule {
         }
     }
 
+    /** v12: ánimo y energía diarios. */
+    private val MIGRATION_11_12 = object : Migration(11, 12) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("CREATE TABLE IF NOT EXISTS `mood_entries` (`dateMillis` INTEGER NOT NULL, `mood` INTEGER NOT NULL, `energy` INTEGER NOT NULL, `note` TEXT NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`dateMillis`))")
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase =
@@ -124,7 +131,7 @@ object DatabaseModule {
             AppDatabase::class.java,
             "life_dashboard.db"
         )
-            .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11)
+            .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12)
             .fallbackToDestructiveMigration()
             .fallbackToDestructiveMigrationOnDowngrade()
             .build()
@@ -138,4 +145,5 @@ object DatabaseModule {
     @Provides fun provideMealDao(db: AppDatabase): MealDao = db.mealDao()
     @Provides fun provideReminderDao(db: AppDatabase): ReminderDao = db.reminderDao()
     @Provides fun provideFoodLibraryDao(db: AppDatabase): FoodLibraryDao = db.foodLibraryDao()
+    @Provides fun provideMoodDao(db: AppDatabase): MoodDao = db.moodDao()
 }

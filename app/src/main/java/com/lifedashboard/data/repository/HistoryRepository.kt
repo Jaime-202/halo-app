@@ -30,6 +30,7 @@ class HistoryRepository @Inject constructor(
     private val workoutDao: WorkoutDao,
     private val reminderDao: ReminderDao,
     private val weightDao: WeightDao,
+    private val moodDao: com.lifedashboard.data.local.dao.MoodDao,
     private val prefs: UserPreferencesRepository,
 ) {
     private val zone = ZoneId.systemDefault()
@@ -51,7 +52,9 @@ class HistoryRepository @Inject constructor(
             reminderDao.observeLogsInRange(fromMs, toMs),
             reminderDao.observeEnabled(),
             prefs.userGoals,
-        ) { q, logs, reminders, goals ->
+            moodDao.observeRange(fromMs, toMs),
+        ) { q, logs, reminders, goals, moods ->
+            val moodBy = moods.associateBy { date(it.dateMillis) }
             val healthBy = q.a.associateBy { date(it.dateMillis) }
             val mealsBy = q.b.groupBy { date(it.dateMillis) }
             val sessionsBy = q.c.filter { it.type != "REST" }.groupBy { date(it.dateMillis) }
@@ -87,6 +90,8 @@ class HistoryRepository @Inject constructor(
                     remindersDone = done,
                     remindersTotal = total,
                     weightKg = weightBy[d],
+                    mood = moodBy[d]?.mood,
+                    energy = moodBy[d]?.energy,
                     dayScore = HaloScores.dayScore(
                         DayInputs(
                             steps = h?.steps, stepsTarget = goals.stepsTarget,

@@ -62,6 +62,7 @@ fun DashboardScreen(
         onNavigateToNutrition = onNavigateToNutrition,
         onNavigateToSettings  = onNavigateToSettings,
         onEditMetrics         = { showEditMetrics = true },
+        onSaveMood            = { m, e -> viewModel.saveMood(m, e) },
         onAddWater            = {
             viewModel.addWater(250)
             android.widget.Toast.makeText(context, "+250 ml de agua", android.widget.Toast.LENGTH_SHORT).show()
@@ -103,7 +104,8 @@ fun DashboardContent(
     onNavigateToNutrition: () -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
     onEditMetrics: () -> Unit = {},
-    onAddWater: () -> Unit = {}
+    onAddWater: () -> Unit = {},
+    onSaveMood: (Int, Int) -> Unit = { _, _ -> }
 ) {
     val scrollState = rememberScrollState()
     val greeting = remember(state.userName) {
@@ -166,6 +168,15 @@ fun DashboardContent(
                 onToggleReminder     = onToggleReminder,
                 onNavigateToSettings = onNavigateToSettings
             )
+
+            // Ánimo y energía: por la tarde, o si ya está registrado
+            if (state.todayMood != null || java.time.LocalTime.now().hour >= 17) {
+                com.lifedashboard.presentation.common.components.MoodCheckInCard(
+                    mood = state.todayMood,
+                    energy = state.todayEnergy,
+                    onSave = onSaveMood
+                )
+            }
 
             // 5. Una sola frase
             todayInsight(state, numbers)?.let { InsightLine(it) }

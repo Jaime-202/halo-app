@@ -135,7 +135,7 @@ object NotificationHelper {
         )
 
         val notification = NotificationCompat.Builder(context, CHANNEL_REMINDERS_ID)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setSmallIcon(R.drawable.ic_launcher_monochrome)
             .setContentTitle("$iconEmoji $title")
             .setContentText("Toma programada a las $timeOfDay. Toca para verla o márcala directamente.")
             .setStyle(
@@ -180,7 +180,7 @@ object NotificationHelper {
         )
 
         val notification = NotificationCompat.Builder(context, CHANNEL_REMINDERS_ID)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setSmallIcon(R.drawable.ic_launcher_monochrome)
             .setContentTitle("🔔 ¡Notificaciones de Life Dashboard Activas!")
             .setContentText("Tu teléfono está listo para avisarte de tus tomas, suplementos y descansos a la hora exacta.")
             .setStyle(
@@ -210,6 +210,33 @@ object NotificationHelper {
     /**
      * Resumen matutino diario con tus objetivos fijados.
      */
+    /** Resumen semanal del domingo (mismo canal que el resumen diario). */
+    fun showWeeklySummary(context: Context, title: String, message: String) {
+        createChannels(context)
+        if (!hasPostNotificationPermission(context)) return
+        val openIntent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val pending = PendingIntent.getActivity(
+            context, NOTIFICATION_WEEKLY_ID, openIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val notification = NotificationCompat.Builder(context, CHANNEL_DAILY_ID)
+            .setSmallIcon(R.drawable.ic_launcher_monochrome)
+            .setContentTitle(title)
+            .setContentText(message)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(message))
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setAutoCancel(true)
+            .setContentIntent(pending)
+            .build()
+        try {
+            NotificationManagerCompat.from(context).notify(NOTIFICATION_WEEKLY_ID, notification)
+        } catch (_: SecurityException) { }
+    }
+
+    private const val NOTIFICATION_WEEKLY_ID = 7301
+
     fun showDailySummary(context: Context, title: String, message: String) {
         createChannels(context)
         if (!hasPostNotificationPermission(context)) return
@@ -225,7 +252,7 @@ object NotificationHelper {
         )
 
         val notification = NotificationCompat.Builder(context, CHANNEL_DAILY_ID)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setSmallIcon(R.drawable.ic_launcher_monochrome)
             .setContentTitle(title)
             .setContentText(message)
             .setStyle(NotificationCompat.BigTextStyle().bigText(message))
@@ -257,7 +284,7 @@ object NotificationHelper {
         )
 
         val notification = NotificationCompat.Builder(context, CHANNEL_BEDTIME_ID)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setSmallIcon(R.drawable.ic_launcher_monochrome)
             .setContentTitle(title)
             .setContentText(message)
             .setStyle(NotificationCompat.BigTextStyle().bigText(message))

@@ -82,7 +82,9 @@ data class DashboardUiState(
     val restingHrBaseline: Float? = null,
     val hrvMs: Float = 0f,
     val hrvBaseline: Float? = null,
-    val homeMetrics: List<String> = listOf("PASOS", "SUENO", "PROTEINA", "AGUA")
+    val homeMetrics: List<String> = listOf("PASOS", "SUENO", "PROTEINA", "AGUA"),
+    val todayMood: Int? = null,
+    val todayEnergy: Int? = null
 )
 
 @HiltViewModel
@@ -97,7 +99,8 @@ class DashboardViewModel @Inject constructor(
     private val evaluateAchievements: EvaluateRoutineAchievementUseCase,
     private val userPreferences: UserPreferencesRepository,
     private val energyTargets: com.lifedashboard.data.repository.EnergyTargetsManager,
-    private val waterIntakeDao: com.lifedashboard.data.local.dao.WaterIntakeDao
+    private val waterIntakeDao: com.lifedashboard.data.local.dao.WaterIntakeDao,
+    private val moodDao: com.lifedashboard.data.local.dao.MoodDao
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DashboardUiState())
@@ -251,6 +254,10 @@ class DashboardViewModel @Inject constructor(
                     )
                 }
             }
+            .launchIn(viewModelScope)
+
+        moodDao.observeForDay(todayMillis)
+            .onEach { m -> _uiState.update { it.copy(todayMood = m?.mood, todayEnergy = m?.energy) } }
             .launchIn(viewModelScope)
 
         waterIntakeDao.getTotalForDay(todayMillis)
@@ -425,6 +432,16 @@ class DashboardViewModel @Inject constructor(
                     dateMillis = LocalDate.now().toStartOfDayMillis(),
                     timestampMillis = now,
                     amountMl = ml
+                )
+            )
+        }
+    }
+
+    fun saveMood(mood: Int, energy: Int) {
+        viewModelScope.launch(Dispatchers.IO) {
+            moodDao.upsert(
+                com.lifedashboard.data.local.entity.MoodEntryEntity(
+                    dateMillis = LocalDate.now().toStartOfDayMillis(), mood = mood, energy = energy
                 )
             )
         }

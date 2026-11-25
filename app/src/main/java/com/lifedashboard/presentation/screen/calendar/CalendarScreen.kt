@@ -58,6 +58,7 @@ data class CalendarUiState(
     val sleepTarget: Float = 8f,
     val intakeTarget: Float = 2200f,
     val streak: StreakInfo = StreakInfo(0, 0, false),
+    val insights: List<com.lifedashboard.domain.insights.Insight> = emptyList(),
 )
 
 @HiltViewModel
@@ -75,6 +76,9 @@ class CalendarViewModel @Inject constructor(
             sleepTarget = g.sleepTargetHours,
             intakeTarget = g.caloriesTarget,
             streak = HistoryMath.streak(days, LocalDate.now()),
+            insights = com.lifedashboard.domain.insights.InsightEngine.analyze(
+                days.filterKeys { it.isAfter(LocalDate.now().minusDays(90)) }, g.sleepTargetHours, g.stepsTarget
+            ),
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), CalendarUiState())
 }
@@ -121,6 +125,8 @@ fun CalendarScreen(viewModel: CalendarViewModel = hiltViewModel()) {
         }
 
         if (view != CalendarView.AÑO) selected?.let { d -> DayDetail(d, state.days[d], state) }
+
+        InsightsCard(state.insights)
     }
 }
 
@@ -228,12 +234,57 @@ private fun PeriodSummary(state: CalendarUiState, range: List<LocalDate>) {
 // ─── Semana ──────────────────────────────────────────────────────────────────
 
 @Composable
+private fun InsightsCard(insights: List<com.lifedashboard.domain.insights.Insight>) {
+    Card {
+        Text("CONCLUSIONES", color = TextMute, style = mono11)
+        if (insights.isEmpty()) {
+            Text(
+                "Cuando lleves unas semanas registrando sueño, comida, entrenos y ánimo, aquí verás qué cosas se relacionan en tu caso.",
+                color = TextMute, style = MaterialTheme.typography.bodySmall,
+            )
+        } else {
+            insights.take(4).forEach { ins ->
+                Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
+                    Box(Modifier.width(2.dp).fillMaxHeight().background(Ion))
+                    Spacer(Modifier.width(10.dp))
+                    Text(ins.text, color = TextHigh, style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun WeekSummaryHeader(state: CalendarUiState, monday: LocalDate) {
+    val w = com.lifedashboard.domain.insights.WeeklySummary.build(state.days, monday)
+    Row(horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+        Column {
+            Text("HALO MEDIO", color = TextMute, style = mono11)
+            Row(verticalAlignment = Alignment.Bottom) {
+                Text(w.avgHalo?.toString() ?: "—", color = TextHigh, style = MaterialTheme.typography.headlineSmall)
+                w.haloDelta?.let {
+                    Spacer(Modifier.width(6.dp))
+                    Text((if (it >= 0) "+" else "") + it + " vs anterior", color = if (it >= 0) Ion else TextMute, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(bottom = 4.dp))
+                }
+            }
+        }
+        w.avgSleep?.let {
+            Column {
+                Text("SUEÑO", color = TextMute, style = mono11)
+                Text("%.1f h".format(es, it), color = TextHigh, style = MaterialTheme.typography.headlineSmall)
+            }
+        }
+    }
+}
+
+@Composable
 private fun WeekView(state: CalendarUiState, metric: CalendarMetric, anchor: LocalDate, onShift: (Int) -> Unit, onSelect: (LocalDate) -> Unit) {
     val monday = HistoryMath.mondayOf(anchor)
     val days = (0..6).map { monday.plusDays(it.toLong()) }
     val f = DateTimeFormatter.ofPattern("d MMM", es)
     Card {
         Navigator("${monday.format(f)} – ${days.last().format(f)}", onShift, canForward = days.last().isBefore(LocalDate.now()))
+        WeekSummaryHeader(state, monday)
         Row(Modifier.fillMaxWidth().height(130.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Bottom) {
             days.forEach { d ->
                 val v = intensity(state, d, metric)
@@ -399,5 +450,10 @@ private fun DayDetail(date: LocalDate, d: DaySummary?, state: CalendarUiState) {
         Row2("Entreno", if (d.trained) "${d.workoutMinutes} min" else "Descanso", if (d.trained) Ion else TextMute)
         if (d.remindersTotal > 0) Row2("Recordatorios", "${d.remindersDone} / ${d.remindersTotal}")
         d.weightKg?.let { Row2("Peso", "%.1f kg".format(es, it)) }
+        if (d.mood != null && d.energy != null) Row2(
+            "Ánimo y energía",
+            com.lifedashboard.presentation.common.components.moodLabel(d.mood) + " · " +
+                com.lifedashboard.presentation.common.components.energyLabel(d.energy).lowercase()
+        )
     }
 }

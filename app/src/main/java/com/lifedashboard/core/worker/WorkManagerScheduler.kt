@@ -38,6 +38,7 @@ class WorkManagerScheduler @Inject constructor(
             if (g.dailyReminders) scheduleDailySummaryReminder() else cancelDailySummaryReminder()
             if (g.eveningReview) scheduleEveningReviewReminder() else cancelEveningReviewReminder()
             if (g.hydrationReminder) scheduleHydrationReminder() else cancelHydrationReminder()
+            if (g.weeklySummary) scheduleWeeklySummary() else cancelWeeklySummary()
         }
     }
 
@@ -162,6 +163,22 @@ class WorkManagerScheduler @Inject constructor(
     fun scheduleHydrationReminder() {
         // Desactivado: no programar avisos de hidratación
         cancelHydrationReminder()
+    }
+
+    /** Resumen semanal: el próximo domingo a las 20:00. */
+    fun scheduleWeeklySummary() {
+        val now = java.time.LocalDateTime.now()
+        var next = now.toLocalDate().with(java.time.temporal.TemporalAdjusters.nextOrSame(java.time.DayOfWeek.SUNDAY)).atTime(20, 0)
+        if (!next.isAfter(now)) next = next.plusWeeks(1)
+        val delay = java.time.Duration.between(now, next).toMillis()
+        val request = OneTimeWorkRequestBuilder<WeeklySummaryWorker>()
+            .setInitialDelay(delay, java.util.concurrent.TimeUnit.MILLISECONDS)
+            .build()
+        workManager.enqueueUniqueWork(WeeklySummaryWorker.WORK_NAME, ExistingWorkPolicy.REPLACE, request)
+    }
+
+    fun cancelWeeklySummary() {
+        workManager.cancelUniqueWork(WeeklySummaryWorker.WORK_NAME)
     }
 
     fun cancelHydrationReminder() {

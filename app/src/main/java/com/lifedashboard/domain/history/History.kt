@@ -17,9 +17,11 @@ data class DaySummary(
     val remindersTotal: Int = 0,
     val weightKg: Float? = null,
     val dayScore: Int? = null,
+    val mood: Int? = null,          // 1..5
+    val energy: Int? = null,        // 1..5
 ) {
     val balanceKcal: Float? get() = if (intakeKcal > 0f) intakeKcal - expenditureKcal else null
-    val hasData: Boolean get() = dayScore != null || trained || weightKg != null
+    val hasData: Boolean get() = dayScore != null || trained || weightKg != null || mood != null
 }
 
 /** Filtros del calendario. */
@@ -30,6 +32,7 @@ enum class CalendarMetric(val label: String) {
     SUENO("Sueño"),
     ACTIVIDAD("Actividad"),
     RECORDATORIOS("Recordatorios"),
+    ANIMO("Ánimo"),
 }
 
 data class StreakInfo(val current: Int, val longest: Int, val wildcardUsedThisWeek: Boolean)
@@ -43,6 +46,7 @@ object HistoryMath {
             CalendarMetric.PASOS -> if (d.steps > 0 && stepsTarget > 0) (d.steps.toFloat() / stepsTarget).coerceIn(0f, 1f) else null
             CalendarMetric.SUENO -> if (d.sleepHours > 0f && sleepTarget > 0f) (d.sleepHours / sleepTarget).coerceIn(0f, 1f) else null
             CalendarMetric.ACTIVIDAD -> if (d.trained) 1f else null
+            CalendarMetric.ANIMO -> d.mood?.let { (it - 1) / 4f }
             CalendarMetric.RECORDATORIOS -> if (d.remindersTotal > 0) d.remindersDone.toFloat() / d.remindersTotal else null
             CalendarMetric.KCAL -> if (d.intakeKcal > 0f && intakeTarget > 0f) {
                 val dev = kotlin.math.abs(d.intakeKcal - intakeTarget) / intakeTarget
