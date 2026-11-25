@@ -15,7 +15,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -35,15 +35,13 @@ import com.lifedashboard.presentation.theme.*
  * Barra de navegación "Órbita".
  *
  * Una cápsula con las pestañas: la activa se expande y muestra su nombre, las demás
- * solo el icono. A la derecha, separado, un botón redondo de acción. De momento abre
- * Ajustes; cuando exista el registro universal pasará a ser el botón "+".
+ * solo el icono. A la derecha, separado, el botón "+" para registrar cualquier cosa.
  */
 @Composable
 fun OrbitNavBar(
     items: List<BottomNavItem>,
     currentRoute: String?,
     onNavigate: (Screen) -> Unit,
-    actionSelected: Boolean,
     onAction: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -83,22 +81,19 @@ fun OrbitNavBar(
             }
         }
 
-        val actionBg by animateColorAsState(if (actionSelected) Ion else Panel, label = "actionBg")
-        val actionFg by animateColorAsState(if (actionSelected) Obsidian else Ion, label = "actionFg")
         Box(
             modifier = Modifier
                 .size(56.dp)
-                .shadow(if (actionSelected) 12.dp else 0.dp, CircleShape, ambientColor = Ion, spotColor = Ion)
+                .shadow(12.dp, CircleShape, ambientColor = Ion, spotColor = Ion)
                 .clip(CircleShape)
-                .background(actionBg)
-                .border(1.dp, if (actionSelected) Ion else LineStrong, CircleShape)
-                .clickable(role = Role.Button, onClickLabel = "Ajustes") {
-                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                .background(Ion)
+                .clickable(role = Role.Button, onClickLabel = "Registrar") {
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                     onAction()
                 },
             contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.Outlined.Settings, contentDescription = "Ajustes", tint = actionFg)
+            Icon(Icons.Filled.Add, contentDescription = "Registrar", tint = Obsidian, modifier = Modifier.size(26.dp))
         }
     }
 }

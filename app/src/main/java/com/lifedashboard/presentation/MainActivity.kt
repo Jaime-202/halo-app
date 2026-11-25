@@ -98,6 +98,47 @@ private fun LifeDashboardApp() {
         }
     }
 
+    // Botón "+": registro universal
+    val quickLog: com.lifedashboard.presentation.quicklog.QuickLogViewModel = androidx.hilt.navigation.compose.hiltViewModel()
+    var showQuickLog by remember { mutableStateOf(false) }
+    var weightDialogKg by remember { mutableStateOf<Float?>(null) }
+    val scope = rememberCoroutineScope()
+
+    if (showQuickLog) {
+        com.lifedashboard.presentation.quicklog.QuickLogSheet(
+            onDismiss = { showQuickLog = false },
+            onNutrition = { action ->
+                showQuickLog = false
+                com.lifedashboard.presentation.quicklog.QuickActionBus.request(action)
+                navController.navigate(Screen.Nutrition.route) {
+                    popUpTo(Screen.Dashboard.route) { saveState = true }
+                    launchSingleTop = true
+                    restoreState = true
+                }
+            },
+            onWeight = {
+                showQuickLog = false
+                scope.launch { weightDialogKg = quickLog.currentWeight() }
+            },
+            onWater = { ml ->
+                showQuickLog = false
+                quickLog.addWater(ml)
+                android.widget.Toast.makeText(context, "+$ml ml de agua", android.widget.Toast.LENGTH_SHORT).show()
+            },
+        )
+    }
+    weightDialogKg?.let { kg ->
+        com.lifedashboard.presentation.quicklog.QuickWeightDialog(
+            initialKg = kg,
+            onSave = {
+                quickLog.logWeight(it)
+                weightDialogKg = null
+                android.widget.Toast.makeText(context, "Peso guardado", android.widget.Toast.LENGTH_SHORT).show()
+            },
+            onDismiss = { weightDialogKg = null },
+        )
+    }
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
@@ -117,8 +158,7 @@ private fun LifeDashboardApp() {
                 items          = bottomNavItems,
                 currentRoute   = currentRoute,
                 onNavigate     = navigateTo,
-                actionSelected = currentRoute == Screen.Settings.route,
-                onAction       = { navigateTo(Screen.Settings) },
+                onAction       = { showQuickLog = true },
             )
         }
     ) { paddingValues ->

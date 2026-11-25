@@ -132,6 +132,21 @@ fun NutritionScreen(
             }
     }
 
+    // Acciones pedidas desde el botón "+" de la barra Órbita
+    val pendingAction by com.lifedashboard.presentation.quicklog.QuickActionBus.pending.collectAsStateWithLifecycle()
+    LaunchedEffect(pendingAction) {
+        val action = com.lifedashboard.presentation.quicklog.QuickActionBus.consume() ?: return@LaunchedEffect
+        val type = defaultMealTypeForNow()
+        selectedMealTypeForAdd = type
+        when (action) {
+            com.lifedashboard.presentation.quicklog.NutritionAction.SEARCH -> showSearchDialog = true
+            com.lifedashboard.presentation.quicklog.NutritionAction.PHOTO -> cameraLauncher.launch(null)
+            com.lifedashboard.presentation.quicklog.NutritionAction.BARCODE -> launchBarcodeScanner(type)
+            com.lifedashboard.presentation.quicklog.NutritionAction.LABEL -> labelLauncher.launch(null)
+            com.lifedashboard.presentation.quicklog.NutritionAction.TEXT -> viewModel.openTextAiDialog(type)
+        }
+    }
+
     // Diálogo de foto y descripción con IA
     if (state.stagedBitmap != null) {
         PhotoAiDialog(

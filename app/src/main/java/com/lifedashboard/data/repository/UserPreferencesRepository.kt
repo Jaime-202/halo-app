@@ -28,16 +28,16 @@ data class UserGoals(
     val showHeroRings: Boolean = true,
     val showAiInsight: Boolean = true,
     val showUpcomingEvents: Boolean = true,
-    val dailyReminders: Boolean = true,
+    val dailyReminders: Boolean = false,
     val hydrationReminder: Boolean = false,
     val inactivityAlerts: Boolean = false,
-    val eveningReview: Boolean = true,
+    val eveningReview: Boolean = false,
     val aiStyle: String = "CIENTIFICO",            // "CIENTIFICO" | "MOTIVADOR" | "DIRECTO"
     val syncFrequency: String = "30_MIN",          // "15_MIN" | "30_MIN" | "60_MIN" | "MANUAL"
     val themeMode: String = "OSCURO",
     val geminiApiKey: String = "",
     val geminiModel: String = "gemini-3.8-flash",
-    val bedtimeReminderEnabled: Boolean = true,
+    val bedtimeReminderEnabled: Boolean = false,
     val wakeUpHour: Int = 8,
     val wakeUpMinute: Int = 30,
     val bedtimeReminderMinutesBefore: Int = 30,
@@ -51,7 +51,8 @@ data class UserGoals(
     val activityLevel: String = "MODERADO",        // ver ActivityLevel
     val weightGoal: String = "MANTENER",           // ver WeightGoal
     val adaptiveTdeeKcal: Float = 0f,              // 0 = sin datos suficientes
-    val onboardingCompleted: Boolean = false
+    val onboardingCompleted: Boolean = false,
+    val homeMetrics: String = "PASOS,SUENO,PROTEINA,AGUA"   // 4 métricas de la pantalla Hoy
 )
 
 @Singleton
@@ -96,6 +97,7 @@ class UserPreferencesRepository @Inject constructor(
         val WEIGHT_GOAL            = stringPreferencesKey("weight_goal")
         val ADAPTIVE_TDEE          = floatPreferencesKey("adaptive_tdee")
         val ONBOARDING_DONE        = booleanPreferencesKey("onboarding_done")
+        val HOME_METRICS           = stringPreferencesKey("home_metrics")
     }
 
     val userGoals: Flow<UserGoals> = context.dataStore.data
@@ -122,16 +124,16 @@ class UserPreferencesRepository @Inject constructor(
                 showHeroRings        = prefs[Keys.SHOW_HERO_RINGS] ?: true,
                 showAiInsight        = prefs[Keys.SHOW_AI_INSIGHT] ?: true,
                 showUpcomingEvents   = prefs[Keys.SHOW_UPCOMING_EVENTS] ?: true,
-                dailyReminders       = prefs[Keys.DAILY_REMINDERS] ?: true,
+                dailyReminders       = prefs[Keys.DAILY_REMINDERS] ?: false,
                 hydrationReminder    = prefs[Keys.HYDRATION_REMINDER] ?: false,
                 inactivityAlerts     = prefs[Keys.INACTIVITY_ALERTS] ?: false,
-                eveningReview        = prefs[Keys.EVENING_REVIEW] ?: true,
+                eveningReview        = prefs[Keys.EVENING_REVIEW] ?: false,
                 aiStyle              = prefs[Keys.AI_STYLE] ?: "CIENTIFICO",
                 syncFrequency        = prefs[Keys.SYNC_FREQUENCY] ?: "30_MIN",
                 themeMode            = prefs[Keys.THEME_MODE] ?: "OSCURO",
                 geminiApiKey         = prefs[Keys.GEMINI_API_KEY] ?: "",
                 geminiModel          = prefs[Keys.GEMINI_MODEL]?.takeIf { it.isNotBlank() } ?: "gemini-3.8-flash",
-                bedtimeReminderEnabled = prefs[Keys.BEDTIME_REMINDER] ?: true,
+                bedtimeReminderEnabled = prefs[Keys.BEDTIME_REMINDER] ?: false,
                 wakeUpHour           = prefs[Keys.WAKE_UP_HOUR] ?: 8,
                 wakeUpMinute         = prefs[Keys.WAKE_UP_MINUTE] ?: 30,
                 bedtimeReminderMinutesBefore = prefs[Keys.BEDTIME_MINUTES_BEFORE] ?: 30,
@@ -144,7 +146,8 @@ class UserPreferencesRepository @Inject constructor(
                 activityLevel        = prefs[Keys.ACTIVITY_LEVEL] ?: "MODERADO",
                 weightGoal           = prefs[Keys.WEIGHT_GOAL] ?: "MANTENER",
                 adaptiveTdeeKcal     = prefs[Keys.ADAPTIVE_TDEE] ?: 0f,
-                onboardingCompleted  = prefs[Keys.ONBOARDING_DONE] ?: false
+                onboardingCompleted  = prefs[Keys.ONBOARDING_DONE] ?: false,
+                homeMetrics          = prefs[Keys.HOME_METRICS] ?: "PASOS,SUENO,PROTEINA,AGUA"
             )
         }
 
@@ -310,6 +313,10 @@ class UserPreferencesRepository @Inject constructor(
         context.dataStore.edit { prefs -> prefs[Keys.ADAPTIVE_TDEE] = kcal }
     }
 
+    suspend fun updateHomeMetrics(metrics: List<String>) {
+        context.dataStore.edit { prefs -> prefs[Keys.HOME_METRICS] = metrics.joinToString(",") }
+    }
+
     suspend fun setOnboardingCompleted(done: Boolean) {
         context.dataStore.edit { prefs -> prefs[Keys.ONBOARDING_DONE] = done }
     }
@@ -333,14 +340,14 @@ class UserPreferencesRepository @Inject constructor(
             prefs[Keys.SHOW_HERO_RINGS]        = true
             prefs[Keys.SHOW_AI_INSIGHT]        = true
             prefs[Keys.SHOW_UPCOMING_EVENTS]   = true
-            prefs[Keys.DAILY_REMINDERS]        = true
+            prefs[Keys.DAILY_REMINDERS]        = false
             prefs[Keys.HYDRATION_REMINDER]     = false
             prefs[Keys.INACTIVITY_ALERTS]      = false
-            prefs[Keys.EVENING_REVIEW]         = true
+            prefs[Keys.EVENING_REVIEW]         = false
             prefs[Keys.AI_STYLE]               = "CIENTIFICO"
             prefs[Keys.SYNC_FREQUENCY]         = "30_MIN"
             prefs[Keys.THEME_MODE]             = "OSCURO"
-            prefs[Keys.BEDTIME_REMINDER]       = true
+            prefs[Keys.BEDTIME_REMINDER]       = false
             prefs[Keys.WAKE_UP_HOUR]           = 8
             prefs[Keys.WAKE_UP_MINUTE]         = 30
             prefs[Keys.BEDTIME_MINUTES_BEFORE] = 30

@@ -2,6 +2,8 @@ package com.lifedashboard.core.worker
 
 import android.content.Context
 import androidx.work.*
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -20,10 +22,23 @@ class WorkManagerScheduler @Inject constructor(
         scheduleHealthConnectSync()
         scheduleWidgetUpdates()
         symmetryFolderUri?.let { scheduleSymmetrySync(it) }
-        scheduleBedtimeReminder()
-        scheduleDailySummaryReminder()
-        scheduleEveningReviewReminder()
-        cancelHydrationReminder()
+        scheduleAutomaticReminders()
+    }
+
+    /**
+     * Avisos automáticos de la app (dormir, resumen, revisión nocturna, agua).
+     * Son plantillas opcionales: solo se programan si están activadas en Ajustes.
+     */
+    fun scheduleAutomaticReminders() {
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            val g = com.lifedashboard.data.repository.UserPreferencesRepository(context).userGoals.first()
+            if (g.bedtimeReminderEnabled) {
+                scheduleBedtimeReminder(g.wakeUpHour, g.wakeUpMinute, g.sleepTargetHours, g.bedtimeReminderMinutesBefore)
+            } else cancelBedtimeReminder()
+            if (g.dailyReminders) scheduleDailySummaryReminder() else cancelDailySummaryReminder()
+            if (g.eveningReview) scheduleEveningReviewReminder() else cancelEveningReviewReminder()
+            if (g.hydrationReminder) scheduleHydrationReminder() else cancelHydrationReminder()
+        }
     }
 
     fun scheduleBedtimeReminder(

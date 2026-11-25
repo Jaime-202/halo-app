@@ -9,6 +9,8 @@ import androidx.health.connect.client.records.ExerciseSessionRecord
 import androidx.health.connect.client.records.SleepSessionRecord
 import androidx.health.connect.client.records.StepsRecord
 import androidx.health.connect.client.records.TotalCaloriesBurnedRecord
+import androidx.health.connect.client.records.RestingHeartRateRecord
+import androidx.health.connect.client.records.HeartRateVariabilityRmssdRecord
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
 import androidx.hilt.work.HiltWorker
@@ -192,6 +194,23 @@ class HealthConnectSyncWorker @AssistedInject constructor(
             // Ignorar si no hay registro o permiso
         }
 
+        // Pulso en reposo y variabilidad cardiaca (permisos opcionales)
+        var restingHr = 0
+        try {
+            val rhr = client.readRecords(ReadRecordsRequest(RestingHeartRateRecord::class, timeRange)).records
+            if (rhr.isNotEmpty()) restingHr = rhr.map { it.beatsPerMinute }.average().toInt()
+        } catch (e: Exception) {
+            Log.w(TAG, "Sin pulso en reposo: ${e.message}")
+        }
+        var hrv = 0f
+        try {
+            // La HRV se mide sobre todo de noche: misma ventana que el sueño
+            val hrvRecords = client.readRecords(ReadRecordsRequest(HeartRateVariabilityRmssdRecord::class, sleepRange)).records
+            if (hrvRecords.isNotEmpty()) hrv = hrvRecords.map { it.heartRateVariabilityMillis }.average().toFloat()
+        } catch (e: Exception) {
+            Log.w(TAG, "Sin variabilidad cardiaca: ${e.message}")
+        }
+
         return HealthDataEntity(
             dateMillis      = date.toStartOfDayMillis(),
             steps           = steps,
@@ -199,6 +218,8 @@ class HealthConnectSyncWorker @AssistedInject constructor(
             activeCalories  = calories,
             sleepHours      = totalSleepMinutes / 60f,
             sleepDeepHours  = deepMinutes / 60f,
+            restingHeartRate = restingHr,
+            hrvMs           = hrv,
             sleepRemHours   = remMinutes / 60f
         )
     }

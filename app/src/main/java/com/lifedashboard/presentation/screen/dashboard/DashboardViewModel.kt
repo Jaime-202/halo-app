@@ -71,7 +71,18 @@ data class DashboardUiState(
     val bmrKcal: Float = 0f,
     val tdeeKcal: Float = 0f,
     val intakeTargetKcal: Float = 0f,
-    val tdeeIsAdaptive: Boolean = false
+    val tdeeIsAdaptive: Boolean = false,
+    // Pantalla Hoy (Halo)
+    val todayProteinG: Float = 0f,
+    val proteinTargetG: Float = 0f,
+    val todayWaterMl: Int = 0,
+    val waterTargetMl: Int = 2500,
+    val weeklyActiveMinutes: Int = 0,
+    val restingHr: Int = 0,
+    val restingHrBaseline: Float? = null,
+    val hrvMs: Float = 0f,
+    val hrvBaseline: Float? = null,
+    val homeMetrics: List<String> = listOf("PASOS", "SUENO", "PROTEINA", "AGUA")
 )
 
 @HiltViewModel
@@ -85,7 +96,8 @@ class DashboardViewModel @Inject constructor(
     private val geminiService: GeminiApiService,
     private val evaluateAchievements: EvaluateRoutineAchievementUseCase,
     private val userPreferences: UserPreferencesRepository,
-    private val energyTargets: com.lifedashboard.data.repository.EnergyTargetsManager
+    private val energyTargets: com.lifedashboard.data.repository.EnergyTargetsManager,
+    private val waterIntakeDao: com.lifedashboard.data.local.dao.WaterIntakeDao
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DashboardUiState())
@@ -129,7 +141,10 @@ class DashboardViewModel @Inject constructor(
                         bmrKcal            = energy.bmrKcal,
                         tdeeKcal           = energy.tdeeKcal,
                         intakeTargetKcal   = goals.caloriesTarget,
-                        tdeeIsAdaptive     = energy.isAdaptive
+                        tdeeIsAdaptive     = energy.isAdaptive,
+                        proteinTargetG     = goals.proteinTargetGrams,
+                        waterTargetMl      = goals.waterTargetMl,
+                        homeMetrics        = goals.homeMetrics.split(",").map { it.trim() }.filter { it.isNotBlank() }.take(4)
                     )
                 }
             }
@@ -144,9 +159,11 @@ class DashboardViewModel @Inject constructor(
         mealDao.observeMealsForDay(todayMillis, tomorrowMillis)
             .onEach { meals ->
                 val consumed = meals.sumOf { it.calories.toDouble() }.toFloat()
+                val protein = meals.sumOf { it.protein.toDouble() }.toFloat()
                 _uiState.update { state ->
                     state.copy(
-                        todayMealsCalories = consumed
+                        todayMealsCalories = consumed,
+                        todayProteinG = protein
                     )
                 }
             }
@@ -171,9 +188,21 @@ class DashboardViewModel @Inject constructor(
         val todayMillis = today.toStartOfDayMillis()
         val tomorrowMillis = today.plusDays(1).toStartOfDayMillis()
 
-        healthDao.observeLastNDays(7)
+        healthDao.observeLastNDays(15)
             .onEach { list ->
-                val h = list.firstOrNull()
+                val h = list.firstOrNull { it.dateMillis == todayMillis } ?: list.firstOrNull()
+                // Media personal de los días anteriores para la recuperación
+                val previous = list.filter { it.dateMillis < todayMillis }
+                val rhrBase = previous.map { it.restingHeartRate }.filter { it > 0 }.takeIf { it.size >= 3 }?.average()?.toFloat()
+                val hrvBase = previous.map { it.hrvMs }.filter { it > 0f }.takeIf { it.size >= 3 }?.average()?.toFloat()
+                _uiState.update {
+                    it.copy(
+                        restingHr = h?.restingHeartRate ?: 0,
+                        hrvMs = h?.hrvMs ?: 0f,
+                        restingHrBaseline = rhrBase,
+                        hrvBaseline = hrvBase
+                    )
+                }
                 val steps = h?.steps ?: 0
                 val sleep = h?.sleepHours ?: 0f
                 val rawCalories = h?.activeCalories ?: 0f
@@ -215,8 +244,17 @@ class DashboardViewModel @Inject constructor(
         val nextMondayMillis = monday.plusDays(7).toStartOfDayMillis()
         workoutDao.getSessionsInRange(mondayMillis, nextMondayMillis)
             .onEach { weekSessions ->
-                _uiState.update { it.copy(weeklyWorkoutsCount = weekSessions.size) }
+                _uiState.update {
+                    it.copy(
+                        weeklyWorkoutsCount = weekSessions.size,
+                        weeklyActiveMinutes = weekSessions.filter { s -> s.type != "REST" }.sumOf { s -> s.durationMinutes }
+                    )
+                }
             }
+            .launchIn(viewModelScope)
+
+        waterIntakeDao.getTotalForDay(todayMillis)
+            .onEach { total -> _uiState.update { it.copy(todayWaterMl = total ?: 0) } }
             .launchIn(viewModelScope)
     }
 
@@ -375,6 +413,24 @@ class DashboardViewModel @Inject constructor(
                 )
             )
             userPreferences.updateWeight(weight)
+            energyTargets.recalculate()
         }
+    }
+
+    fun addWater(ml: Int) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val now = System.currentTimeMillis()
+            waterIntakeDao.insert(
+                com.lifedashboard.data.local.entity.WaterIntakeEntity(
+                    dateMillis = LocalDate.now().toStartOfDayMillis(),
+                    timestampMillis = now,
+                    amountMl = ml
+                )
+            )
+        }
+    }
+
+    fun updateHomeMetrics(metrics: List<String>) {
+        viewModelScope.launch { userPreferences.updateHomeMetrics(metrics.take(4)) }
     }
 }

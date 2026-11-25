@@ -48,6 +48,8 @@ fun DashboardScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var showAddWeightModal by remember { mutableStateOf(false) }
+    var showEditMetrics by remember { mutableStateOf(false) }
+    val context = androidx.compose.ui.platform.LocalContext.current
 
     DashboardContent(
         state                 = state,
@@ -58,8 +60,24 @@ fun DashboardScreen(
         onNavigateToHealth    = onNavigateToHealth,
         onNavigateToWorkout   = onNavigateToWorkout,
         onNavigateToNutrition = onNavigateToNutrition,
-        onNavigateToSettings  = onNavigateToSettings
+        onNavigateToSettings  = onNavigateToSettings,
+        onEditMetrics         = { showEditMetrics = true },
+        onAddWater            = {
+            viewModel.addWater(250)
+            android.widget.Toast.makeText(context, "+250 ml de agua", android.widget.Toast.LENGTH_SHORT).show()
+        }
     )
+
+    if (showEditMetrics) {
+        EditMetricsDialog(
+            current = state.homeMetrics,
+            onSave = {
+                viewModel.updateHomeMetrics(it)
+                showEditMetrics = false
+            },
+            onDismiss = { showEditMetrics = false }
+        )
+    }
 
     if (showAddWeightModal) {
         DashboardAddWeightModal(
@@ -83,7 +101,9 @@ fun DashboardContent(
     onNavigateToHealth: (String) -> Unit = {},
     onNavigateToWorkout: () -> Unit = {},
     onNavigateToNutrition: () -> Unit = {},
-    onNavigateToSettings: () -> Unit = {}
+    onNavigateToSettings: () -> Unit = {},
+    onEditMetrics: () -> Unit = {},
+    onAddWater: () -> Unit = {}
 ) {
     val scrollState = rememberScrollState()
     val greeting = remember(state.userName) {
@@ -115,77 +135,31 @@ fun DashboardContent(
                 .padding(top = 56.dp, bottom = 100.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            // Cabecera principal con saludo y estado del día
-            DashboardHeader(greeting = greeting, state = state)
+            // ── Hoy, por capas: de lo más importante a lo menos ──
+            val numbers = todayNumbers(state)
+            HaloTodayHeader(userName = state.userName, onProfile = onNavigateToSettings)
 
-            // 1. Resumen Hero (Anillos de progreso) - controlado por preferencia
-            if (state.showHeroRings) {
-                DayHeroSection(
-                    state = state,
-                    onNavigateToHealth = onNavigateToHealth
-                )
-            }
+            // 1–2. Halo Score + recuperación, balance y comido frente a gastado
+            HaloHeroCard(state = state, n = numbers, onClick = onNavigateToNutrition)
 
-            // 2. Pilares de Salud y Rendimiento (Pasos, Sueño, Calorías, Entreno)
-            PillarGrid(
+            // 3. Cuatro métricas elegidas por ti
+            MetricTilesGrid(
                 state = state,
-                onNavigateToHealth = onNavigateToHealth,
-                onNavigateToWorkout = onNavigateToWorkout
+                onEdit = onEditMetrics,
+                onTile = { metric ->
+                    when (metric) {
+                        HomeMetric.PASOS -> onNavigateToHealth("PASOS")
+                        HomeMetric.SUENO, HomeMetric.PULSO -> onNavigateToHealth("SUENO")
+                        HomeMetric.KCAL_ACTIVAS -> onNavigateToHealth("CALORIAS")
+                        HomeMetric.PROTEINA -> onNavigateToNutrition()
+                        HomeMetric.AGUA -> onAddWater()
+                        HomeMetric.PESO -> onAddWeightClick()
+                        HomeMetric.ACTIVIDAD -> onNavigateToWorkout()
+                    }
+                }
             )
 
-            // Balance de energía del día: comido frente a gastado
-            if (state.bmrKcal > 0f) {
-                EnergyBalanceCard(state = state, onClick = onNavigateToNutrition)
-            }
-
-            // Tarjeta de Acceso a Nutrición & Comidas
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(22.dp))
-                    .background(
-                        Brush.linearGradient(
-                            listOf(
-                                Indigo800,
-                                PanelHigh
-                            )
-                        )
-                    )
-                    .border(1.dp, Indigo700, RoundedCornerShape(22.dp))
-                    .clickable(onClick = onNavigateToNutrition)
-                    .padding(16.dp)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                        Box(
-                            contentAlignment = Alignment.Center,
-                            modifier = Modifier
-                                .size(38.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(Violet400.copy(alpha = 0.15f))
-                        ) {
-                            Icon(Icons.Default.Restaurant, contentDescription = null, tint = Violet300, modifier = Modifier.size(20.dp))
-                        }
-                        Spacer(Modifier.width(12.dp))
-                        Column {
-                            Text("Nutrición & Comidas", style = MaterialTheme.typography.titleSmall, color = White, fontWeight = FontWeight.Bold)
-                            val subtitle = if (state.todayMealsCalories > 0) {
-                                "${state.todayMealsCalories.toInt()} kcal consumidas hoy · Toca para registrar"
-                            } else {
-                                "Registra platos, macros o foto con IA ✨"
-                            }
-                            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = if (state.todayMealsCalories > 0) Amber400 else Gray400, fontSize = 11.sp)
-                        }
-                    }
-                    Icon(Icons.Default.ChevronRight, contentDescription = "Ir a nutrición", tint = Gray400, modifier = Modifier.size(18.dp))
-                }
-            }
-
-            // Tomas y Recordatorios con interruptor interactivo
+            // 4. Recordatorios del día
             TodayRemindersCard(
                 reminders            = state.todayReminders,
                 selectedDate         = state.selectedDate,
@@ -193,6 +167,10 @@ fun DashboardContent(
                 onNavigateToSettings = onNavigateToSettings
             )
 
+            // 5. Una sola frase
+            todayInsight(state, numbers)?.let { InsightLine(it) }
+
+            // ── Debajo del pliegue: detalle ──
             // Tarjeta de Evolución y Seguimiento de Peso en el Panel
             DashboardWeightCard(
                 latestWeightKg = state.latestWeightKg,
@@ -223,15 +201,6 @@ fun DashboardContent(
                 UpcomingEventsList(events = state.upcomingEvents)
             }
 
-            // 6. Análisis Inteligente - controlado por preferencia
-            if (state.showAiInsight) {
-                SectionTitle("Análisis Inteligente")
-                AiInsightCard(
-                    insight   = state.aiInsight,
-                    isLoading = state.isAiLoading,
-                    onRefresh = onRefreshAi
-                )
-            }
         }
     }
 }

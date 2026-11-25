@@ -611,12 +611,16 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
         HealthPermission.getReadPermission(ActiveCaloriesBurnedRecord::class),
         HealthPermission.getReadPermission(SleepSessionRecord::class),
         HealthPermission.getReadPermission(ExerciseSessionRecord::class),
+        // Para la recuperación (opcionales: si no se conceden, se usa solo el sueño)
+        HealthPermission.getReadPermission(androidx.health.connect.client.records.RestingHeartRateRecord::class),
+        HealthPermission.getReadPermission(androidx.health.connect.client.records.HeartRateVariabilityRmssdRecord::class),
     )
+    val coreHealthPermissions = healthPermissions.take(5).toSet()
 
     val healthPermissionLauncher = rememberLauncherForActivityResult(
         contract = PermissionController.createRequestPermissionResultContract()
     ) { grantedPermissions ->
-        if (grantedPermissions.containsAll(healthPermissions)) {
+        if (grantedPermissions.containsAll(coreHealthPermissions)) {
             viewModel.onHealthConnectConnect(context)
         } else {
             Toast.makeText(context, "Permisos de salud parciales o denegados", Toast.LENGTH_SHORT).show()
