@@ -556,7 +556,7 @@ private fun NutritionHeroCard(
                 Brush.linearGradient(
                     listOf(
                         Indigo800,
-                        Color(0xFF221650),
+                        PanelHigh,
                         Indigo900
                     )
                 )
@@ -3034,7 +3034,7 @@ private fun NutritionCoachCard(
                 Brush.linearGradient(
                     colors = listOf(
                         Indigo800,
-                        Color(0xFF231448)
+                        PanelHigh
                     )
                 )
             )

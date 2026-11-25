@@ -330,7 +330,7 @@ private fun WeeklySummaryCard(
             .clip(RoundedCornerShape(26.dp))
             .background(
                 Brush.linearGradient(
-                    listOf(Indigo800, Color(0xFF22134F))
+                    listOf(Indigo800, PanelHigh)
                 )
             )
             .border(1.dp, Indigo700, RoundedCornerShape(26.dp))

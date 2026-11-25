@@ -87,72 +87,29 @@ private fun LifeDashboardApp() {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
-            LifeDashboardBottomNav(
-                currentRoute = currentRoute,
-                onNavigate   = { screen ->
-                    if (screen == Screen.Dashboard) {
-                        navController.popBackStack(Screen.Dashboard.route, inclusive = false)
-                    } else {
-                        val targetRoute = if (screen is Screen.Health) Screen.Health.createRoute("PASOS") else screen.route
-                        navController.navigate(targetRoute) {
-                            popUpTo(Screen.Dashboard.route) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
+            val navigateTo: (Screen) -> Unit = { screen ->
+                if (screen == Screen.Dashboard) {
+                    navController.popBackStack(Screen.Dashboard.route, inclusive = false)
+                } else {
+                    val targetRoute = if (screen is Screen.Health) Screen.Health.createRoute("PASOS") else screen.route
+                    navController.navigate(targetRoute) {
+                        popUpTo(Screen.Dashboard.route) { saveState = true }
+                        launchSingleTop = true
+                        restoreState = true
                     }
                 }
+            }
+            OrbitNavBar(
+                items          = bottomNavItems,
+                currentRoute   = currentRoute,
+                onNavigate     = navigateTo,
+                actionSelected = currentRoute == Screen.Settings.route,
+                onAction       = { navigateTo(Screen.Settings) },
             )
         }
     ) { paddingValues ->
         Box(Modifier.padding(paddingValues)) {
             NavGraph(navController = navController)
-        }
-    }
-}
-
-@Composable
-private fun LifeDashboardBottomNav(
-    currentRoute: String?,
-    onNavigate: (Screen) -> Unit
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.background)
-            .padding(horizontal = 16.dp, vertical = 8.dp)
-    ) {
-        NavigationBar(
-            containerColor = MaterialTheme.colorScheme.surface,
-            tonalElevation = 0.dp,
-            modifier       = Modifier
-                .clip(RoundedCornerShape(24.dp))
-        ) {
-            bottomNavItems.forEach { item ->
-                val isSelected = currentRoute?.substringBefore("?") == item.screen.route.substringBefore("?")
-                NavigationBarItem(
-                    selected = isSelected,
-                    onClick  = { onNavigate(item.screen) },
-                    icon     = {
-                        Icon(
-                            imageVector = if (isSelected) item.selectedIcon else item.icon,
-                            contentDescription = item.label
-                        )
-                    },
-                    label    = {
-                        Text(
-                            text  = item.label,
-                            style = MaterialTheme.typography.labelSmall
-                        )
-                    },
-                    colors   = NavigationBarItemDefaults.colors(
-                        selectedIconColor       = Violet300,
-                        selectedTextColor       = Violet300,
-                        unselectedIconColor     = Gray500,
-                        unselectedTextColor     = Gray500,
-                        indicatorColor          = Indigo700
-                    )
-                )
-            }
         }
     }
 }

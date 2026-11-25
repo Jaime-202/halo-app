@@ -142,7 +142,7 @@ fun DashboardContent(
                         Brush.linearGradient(
                             listOf(
                                 Indigo800,
-                                Color(0xFF1E1442)
+                                PanelHigh
                             )
                         )
                     )
@@ -588,7 +588,7 @@ private fun SelectedDayDetailCard(
                     DayStatChip(
                         label   = "Entreno",
                         value   = if (progress.workoutCompleted) "Hecho ✓" else "Pendiente",
-                        color   = Color(0xFF60A5FA),
+                        color   = Flux,
                         onClick = onNavigateToWorkout
                     )
                     DayStatChip(
@@ -773,7 +773,7 @@ private fun DashboardWeightCard(
                 Brush.linearGradient(
                     listOf(
                         Indigo800,
-                        Color(0xFF22134E)
+                        PanelHigh
                     )
                 )
             )

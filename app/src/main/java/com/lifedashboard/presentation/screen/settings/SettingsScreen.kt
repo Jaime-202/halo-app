@@ -622,8 +622,8 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
     }
 
     val bgColors = when (state.themeMode) {
-        ThemeMode.AMOLED -> listOf(Color(0xFF000000), Color(0xFF08080C))
-        ThemeMode.MIDNIGHT -> listOf(Color(0xFF0B0F19), Color(0xFF050811))
+        ThemeMode.AMOLED -> listOf(Color.Black, Color.Black)
+        ThemeMode.MIDNIGHT -> listOf(GradientStart, GradientEnd)
         ThemeMode.OSCURO -> listOf(GradientStart, GradientEnd)
     }
 
@@ -1160,14 +1160,11 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                 Text("Estilo Visual & Colores", style = MaterialTheme.typography.labelLarge, color = White, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                    ThemeOptionChip("Índigo Vital", Icons.Default.DarkMode, state.themeMode == ThemeMode.OSCURO, Modifier.weight(1f)) {
+                    ThemeOptionChip("Halo", Icons.Default.DarkMode, state.themeMode != ThemeMode.AMOLED, Modifier.weight(1f)) {
                         viewModel.setThemeMode(ThemeMode.OSCURO)
                     }
                     ThemeOptionChip("Negro OLED", Icons.Default.Nightlight, state.themeMode == ThemeMode.AMOLED, Modifier.weight(1f)) {
                         viewModel.setThemeMode(ThemeMode.AMOLED)
-                    }
-                    ThemeOptionChip("Medianoche", Icons.Default.SettingsSuggest, state.themeMode == ThemeMode.MIDNIGHT, Modifier.weight(1f)) {
-                        viewModel.setThemeMode(ThemeMode.MIDNIGHT)
                     }
                 }
             }
@@ -1848,7 +1845,7 @@ private fun EnhancedUserProfileCard(
                 Brush.linearGradient(
                     listOf(
                         Indigo800,
-                        Color(0xFF1E1444)
+                        PanelHigh
                     )
                 )
             )
@@ -1874,7 +1871,7 @@ private fun EnhancedUserProfileCard(
                             .size(42.dp)
                             .clip(CircleShape)
                             .background(
-                                Brush.linearGradient(listOf(Violet400, Color(0xFF6366F1)))
+                                Brush.linearGradient(listOf(Ion, Flux))
                             )
                     ) {
                         Text(

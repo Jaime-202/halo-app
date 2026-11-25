@@ -4,109 +4,49 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
-private val IndigoColorScheme = darkColorScheme(
-    primary          = Violet400,
-    onPrimary        = Indigo900,
-    primaryContainer = Indigo700,
-    onPrimaryContainer = Violet200,
+/** Halo: tema principal, casi negro con acento Ion. */
+private val HaloColorScheme = darkColorScheme(
+    primary              = Ion,
+    onPrimary            = Obsidian,
+    primaryContainer     = PanelHigh,
+    onPrimaryContainer   = Ion,
 
-    secondary        = Cyan400,
-    onSecondary      = Indigo900,
-    secondaryContainer = Color(0xFF0E3A45),
-    onSecondaryContainer = Cyan400,
+    secondary            = Flux,
+    onSecondary          = Obsidian,
+    secondaryContainer   = PanelHigh,
+    onSecondaryContainer = Flux,
 
-    tertiary         = Teal400,
-    onTertiary       = Indigo900,
-    tertiaryContainer = Color(0xFF0E3430),
-    onTertiaryContainer = Teal400,
+    tertiary             = Teal400,
+    onTertiary           = Obsidian,
+    tertiaryContainer    = PanelHigh,
+    onTertiaryContainer  = Teal400,
 
-    background       = Indigo900,
-    onBackground     = Gray100,
+    background           = Obsidian,
+    onBackground         = TextHigh,
 
-    surface          = Indigo800,
-    onSurface        = Gray100,
-    surfaceVariant   = Indigo700,
-    onSurfaceVariant = Gray300,
+    surface              = Panel,
+    onSurface            = TextHigh,
+    surfaceVariant       = PanelHigh,
+    onSurfaceVariant     = Gray300,
+    surfaceContainer     = Panel,
+    surfaceContainerHigh = PanelHigh,
 
-    outline          = Color(0xFF3D2280),
-    outlineVariant   = Color(0xFF2F1A68),
+    outline              = LineStrong,
+    outlineVariant       = Line,
 
-    error            = Rose400,
-    onError          = Indigo900,
+    error                = Rose400,
+    onError              = Obsidian,
 
-    inverseSurface   = Gray100,
-    inverseOnSurface = Indigo900,
-    inversePrimary   = Indigo700,
+    inverseSurface       = TextHigh,
+    inverseOnSurface     = Obsidian,
+    inversePrimary       = PanelHigh,
 )
 
-private val AmoledColorScheme = darkColorScheme(
-    primary          = Violet400,
-    onPrimary        = Color.Black,
-    primaryContainer = Color(0xFF1E1438),
-    onPrimaryContainer = Violet200,
-
-    secondary        = Cyan400,
-    onSecondary      = Color.Black,
-    secondaryContainer = Color(0xFF092830),
-    onSecondaryContainer = Cyan400,
-
-    tertiary         = Teal400,
-    onTertiary       = Color.Black,
-    tertiaryContainer = Color(0xFF092420),
-    onTertiaryContainer = Teal400,
-
-    background       = Color(0xFF000000),
-    onBackground     = Gray100,
-
-    surface          = Color(0xFF0E0E13),
-    onSurface        = Gray100,
-    surfaceVariant   = Color(0xFF181822),
-    onSurfaceVariant = Gray300,
-
-    outline          = Color(0xFF2E2E3E),
-    outlineVariant   = Color(0xFF1E1E28),
-
-    error            = Rose400,
-    onError          = Color.Black,
-
-    inverseSurface   = Gray100,
-    inverseOnSurface = Color.Black,
-    inversePrimary   = Color(0xFF181822),
-)
-
-private val MidnightColorScheme = darkColorScheme(
-    primary          = Violet400,
-    onPrimary        = Color(0xFF0B0F19),
-    primaryContainer = Color(0xFF1E243D),
-    onPrimaryContainer = Violet200,
-
-    secondary        = Cyan400,
-    onSecondary      = Color(0xFF0B0F19),
-    secondaryContainer = Color(0xFF0F2636),
-    onSecondaryContainer = Cyan400,
-
-    tertiary         = Teal400,
-    onTertiary       = Color(0xFF0B0F19),
-    tertiaryContainer = Color(0xFF0E2B27),
-    onTertiaryContainer = Teal400,
-
-    background       = Color(0xFF0B0F19),
-    onBackground     = Gray100,
-
-    surface          = Color(0xFF141C2E),
-    onSurface        = Gray100,
-    surfaceVariant   = Color(0xFF1E293B),
-    onSurfaceVariant = Gray300,
-
-    outline          = Color(0xFF334155),
-    outlineVariant   = Color(0xFF1E293B),
-
-    error            = Rose400,
-    onError          = Color(0xFF0B0F19),
-
-    inverseSurface   = Gray100,
-    inverseOnSurface = Color(0xFF0B0F19),
-    inversePrimary   = Color(0xFF1E293B),
+/** Variante AMOLED: negro puro para pantallas OLED. */
+private val AmoledColorScheme = HaloColorScheme.copy(
+    background       = Color.Black,
+    surface          = Color(0xFF0A0C0F),
+    surfaceContainer = Color(0xFF0A0C0F),
 )
 
 @Composable
@@ -115,9 +55,8 @@ fun LifeDashboardTheme(
     content: @Composable () -> Unit
 ) {
     val colorScheme = when (themeMode) {
-        "AMOLED", "CLARO" -> AmoledColorScheme
-        "MIDNIGHT", "SISTEMA" -> MidnightColorScheme
-        else -> IndigoColorScheme
+        "AMOLED" -> AmoledColorScheme
+        else     -> HaloColorScheme
     }
 
     MaterialTheme(

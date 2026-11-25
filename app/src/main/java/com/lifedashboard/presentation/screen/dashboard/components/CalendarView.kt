@@ -416,7 +416,7 @@ private fun MonthDayCell(
         isSelected               -> Indigo600
         workoutDone && stepsDone -> Indigo700
         workoutDone              -> Indigo700.copy(alpha = 0.85f)
-        stepsDone                -> Color(0xFF1E2652)
+        stepsDone                -> PanelHigh
         else                     -> Indigo900.copy(alpha = 0.5f)
     }
 

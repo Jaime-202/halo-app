@@ -54,7 +54,7 @@ fun TodayRemindersCard(
                 Brush.linearGradient(
                     listOf(
                         Indigo800,
-                        Color(0xFF1E1442)
+                        PanelHigh
                     )
                 )
             )

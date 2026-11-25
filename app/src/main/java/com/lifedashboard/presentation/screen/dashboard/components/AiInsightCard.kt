@@ -36,7 +36,7 @@ fun AiInsightCard(
     val backgroundGradient = Brush.linearGradient(
         colors = listOf(
             Indigo700,
-            Color(0xFF1E1060),
+            PanelHigh,
         )
     )
 

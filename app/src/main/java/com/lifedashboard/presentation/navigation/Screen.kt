@@ -2,6 +2,7 @@ package com.lifedashboard.presentation.navigation
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.ui.graphics.vector.ImageVector
 
 sealed class Screen(val route: String) {
@@ -22,30 +23,30 @@ data class BottomNavItem(
     val selectedIcon: ImageVector = icon
 )
 
+/** Pestañas de la barra Órbita. Ajustes va aparte, en el botón separado. */
 val bottomNavItems = listOf(
     BottomNavItem(
         screen       = Screen.Dashboard,
-        label        = "Panel",
-        icon         = Icons.Default.Dashboard,
-    ),
-    BottomNavItem(
-        screen       = Screen.Workout,
-        label        = "Entreno",
-        icon         = Icons.Default.FitnessCenter,
+        label        = "Hoy",
+        icon         = Icons.Outlined.TrackChanges,
+        selectedIcon = Icons.Filled.TrackChanges,
     ),
     BottomNavItem(
         screen       = Screen.Nutrition,
         label        = "Comida",
-        icon         = Icons.Default.Restaurant,
+        icon         = Icons.Outlined.Restaurant,
+        selectedIcon = Icons.Filled.Restaurant,
     ),
     BottomNavItem(
         screen       = Screen.Health,
         label        = "Salud",
-        icon         = Icons.Default.Favorite,
+        icon         = Icons.Outlined.MonitorHeart,
+        selectedIcon = Icons.Filled.MonitorHeart,
     ),
     BottomNavItem(
-        screen       = Screen.Settings,
-        label        = "Config",
-        icon         = Icons.Default.Settings,
+        screen       = Screen.Workout,
+        label        = "Actividad",
+        icon         = Icons.Outlined.FitnessCenter,
+        selectedIcon = Icons.Filled.FitnessCenter,
     ),
 )
