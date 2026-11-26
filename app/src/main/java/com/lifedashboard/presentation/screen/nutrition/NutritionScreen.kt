@@ -200,14 +200,19 @@ fun NutritionScreen(
 
     // Diálogo de confirmación de alimento detectado por QR o Código de Barras (1-tap add)
     state.scannedFoodItem?.let { food ->
-        ScannedFoodDialog(
+        FoodDetailSheet(
             food = food,
-            initialMealType = state.activeMealType,
-            onConfirm = { item, grams, mealType ->
-                viewModel.addFoodFromCatalog(item, grams, mealType)
+            initialGrams = food.servingSizeGrams.takeIf { it > 0f } ?: 100f,
+            remainingKcal = state.targetCalories - state.totalCalories,
+            remainingProtein = state.targetProtein - state.totalProtein,
+            isFavorite = NutritionViewModel.foodKey(food.name, food.brand) in state.favoriteKeys,
+            primaryLabel = "Añadir a ${MealSectionType.labelFor(state.activeMealType).lowercase()}",
+            onPrimary = { grams ->
+                viewModel.addFoodFromCatalog(food, grams, state.activeMealType)
                 viewModel.dismissScannedItem()
-                Toast.makeText(context, "Añadido: ${item.name} (${grams.toInt()}g)", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Añadido: ${food.name}", Toast.LENGTH_SHORT).show()
             },
+            onToggleFavorite = { viewModel.toggleFavorite(food) },
             onDismiss = { viewModel.dismissScannedItem() }
         )
     }
@@ -279,27 +284,19 @@ fun NutritionScreen(
 
     // Diálogo de búsqueda y escaneo de alimentos
     if (showSearchDialog) {
-        SearchFoodDialog(
-            mealType = selectedMealTypeForAdd,
-            query = state.searchQuery,
-            selectedCategory = state.selectedCategory,
-            results = state.searchResults,
-            isSearching = state.isSearching,
-            onQueryChange = { viewModel.onSearchQueryChange(it) },
-            onCategorySelect = { viewModel.onCategorySelect(it) },
-            onScanBarcode = {
-                showSearchDialog = false
-                launchBarcodeScanner(selectedMealTypeForAdd)
-            },
-            onAddFood = { item, grams ->
-                viewModel.addFoodFromCatalog(item, grams, selectedMealTypeForAdd)
-                showSearchDialog = false
-            },
-            onDismiss = { showSearchDialog = false },
-            favorites = state.favorites,
-            recents = state.recents,
-            favoriteKeys = state.favoriteKeys,
-            onToggleFavorite = { viewModel.toggleFavorite(it) }
+        AddFoodScreen(
+            state = state,
+            initialMealType = selectedMealTypeForAdd,
+            onQuery = { viewModel.onSearchQueryChange(it) },
+            onCategory = { viewModel.onCategorySelect(it) },
+            onAddBasket = { items, type -> viewModel.addBasket(items, type) },
+            onAddSavedMeal = { saved, type -> viewModel.addSavedMeal(saved, type); showSearchDialog = false },
+            onToggleFavorite = { viewModel.toggleFavorite(it) },
+            onScan = { type -> showSearchDialog = false; launchBarcodeScanner(type) },
+            onPhoto = { type -> showSearchDialog = false; selectedMealTypeForAdd = type; cameraLauncher.launch(null) },
+            onLabel = { showSearchDialog = false; labelLauncher.launch(null) },
+            onDescribe = { type -> showSearchDialog = false; selectedMealTypeForAdd = type; viewModel.openTextAiDialog(type) },
+            onDismiss = { showSearchDialog = false }
         )
     }
 
@@ -344,16 +341,24 @@ fun NutritionScreen(
 
     // Diálogo para ajustar porción (gramos) de un alimento ya registrado
     editingMealItem?.let { meal ->
-        EditPortionDialog(
-            meal = meal,
-            onSaveGrams = { newGrams ->
-                viewModel.updateMealGrams(meal, newGrams)
-                editingMealItem = null
-            },
-            onDelete = {
-                viewModel.deleteMeal(meal.id)
-                editingMealItem = null
-            },
+        val per = if (meal.grams > 0f) 100f / meal.grams else 1f
+        val food = com.lifedashboard.data.remote.food.FoodCatalogItem(
+            id = "meal_${meal.id}", name = meal.name, brand = meal.brand,
+            caloriesPer100g = meal.calories * per, proteinPer100g = meal.protein * per,
+            carbsPer100g = meal.carbs * per, fatPer100g = meal.fat * per,
+            servingSizeGrams = meal.grams, servingDescription = "${meal.grams.toInt()} g",
+            imageUrl = meal.imageUrl, fiberPer100g = meal.fiber * per, sugarPer100g = meal.sugar * per, saltPer100g = meal.salt * per
+        )
+        FoodDetailSheet(
+            food = food,
+            initialGrams = meal.grams,
+            remainingKcal = state.targetCalories - state.totalCalories + meal.calories,
+            remainingProtein = state.targetProtein - state.totalProtein + meal.protein,
+            isFavorite = NutritionViewModel.foodKey(meal.name, meal.brand) in state.favoriteKeys,
+            primaryLabel = "Guardar",
+            onPrimary = { g -> viewModel.updateMealGrams(meal, g); editingMealItem = null },
+            onToggleFavorite = { viewModel.toggleFavorite(food) },
+            onDelete = { viewModel.deleteMeal(meal.id); editingMealItem = null },
             onDismiss = { editingMealItem = null }
         )
     }
@@ -390,21 +395,21 @@ fun NutritionScreen(
         state = state,
         a = NutritionHomeActions(
             selectDate = { viewModel.selectDate(it) },
-            search = { type -> selectedMealTypeForAdd = type; showSearchDialog = true },
-            scan = { type -> launchBarcodeScanner(type) },
-            photo = { type -> selectedMealTypeForAdd = type; cameraLauncher.launch(null) },
-            label = { labelLauncher.launch(null) },
-            describe = { type -> selectedMealTypeForAdd = type; viewModel.openTextAiDialog(type) },
-            quickAdd = { type -> selectedMealTypeForAdd = type; showQuickAddDialog = true },
+            add = { type -> selectedMealTypeForAdd = type; showSearchDialog = true },
+            quickAddFood = { food, type ->
+                viewModel.addFoodFromCatalog(food, food.servingSizeGrams.takeIf { it > 0f } ?: 100f, type)
+                Toast.makeText(context, "Añadido: ${food.name}", Toast.LENGTH_SHORT).show()
+            },
+            repeatYesterday = { viewModel.repeatYesterday(it) },
             editMeal = { editingMealItem = it },
-            quickFood = { quickFood = it },
+            deleteMeal = { viewModel.deleteMeal(it.id) },
+            duplicateMeal = { viewModel.duplicateMeal(it) },
+            addWater = { viewModel.addWater(250) },
             copyYesterday = { viewModel.copyPreviousDay() },
-            savedMeals = { showSavedMeals = true },
             saveMeal = { showSaveMeal = true },
             targets = { showCustomTargetsDialog = true },
             calculator = { viewModel.setCalculatorDialogVisible(true) },
             gemini = { showApiKeyModal = true },
-            refreshAdvice = { viewModel.requestNutritionAdvice(force = true) },
         )
     )
 }

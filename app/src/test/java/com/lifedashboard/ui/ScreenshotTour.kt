@@ -60,10 +60,13 @@ class ScreenshotTour {
             listOf("COMIDA", "Pechuga de pollo a la plancha", "Básico", 180, 297, 56, 0, 7),
             listOf("COMIDA", "Arroz blanco cocido", "Básico", 200, 260, 5, 57, 1),
             listOf("MERIENDA", "Yogur griego natural", "Hacendado", 125, 150, 7, 5, 11),
+            listOf("CENA", "Tortilla francesa", "Básico", 120, 190, 13, 1, 15),
+            listOf("SNACK", "Almendras crudas", "Básico", 30, 175, 6, 3, 15),
         )
         for (d in 0L..120L) {
             db.execSQL("INSERT INTO health_data VALUES (${day(d)}, ${5000 + (d * 377) % 7000}, 4000.0, ${250 + (d * 53) % 300}.0, ${6.0 + (d % 5) * 0.5}, 1.1, 1.5, $now)")
             if (d % 7 != 6L) for (f in foods) {
+                if (d == 0L && f[0] in setOf("CENA", "SNACK")) continue
                 db.execSQL("INSERT INTO meals (dateMillis, mealType, name, brand, grams, calories, protein, carbs, fat, notes, imageUrl, createdAt) VALUES (${day(d)}, '${f[0]}', '${f[1]}', '${f[2]}', ${f[3]}, ${f[4]}, ${f[5]}, ${f[6]}, ${f[7]}, '', NULL, $now)")
             }
             if (d % 4 == 0L) db.execSQL("INSERT INTO weight_entries (dateMillis, weightKg, note) VALUES (${day(d) + 3600000}, ${78.0 + d * 0.03}, NULL)")
@@ -93,7 +96,13 @@ class ScreenshotTour {
         compose.mainClock.advanceTimeBy(2_500)
         compose.waitForIdle()
         scenario!!.onActivity { act ->
-            val v = act.window.decorView
+            // Ventana de más arriba (incluye diálogos y hojas a pantalla completa)
+            val roots = try {
+                val wmg = Class.forName("android.view.WindowManagerGlobal").getMethod("getInstance").invoke(null)
+                val f = wmg.javaClass.getDeclaredField("mViews").apply { isAccessible = true }
+                @Suppress("UNCHECKED_CAST") (f.get(wmg) as List<android.view.View>).filter { it.isShown && it.width > 0 }
+            } catch (e: Exception) { emptyList() }
+            val v = roots.lastOrNull() ?: act.window.decorView
             val bmp = Bitmap.createBitmap(v.width, v.height, Bitmap.Config.ARGB_8888)
             v.draw(android.graphics.Canvas(bmp))
             File(outDir, "$name.png").outputStream().use { bmp.compress(Bitmap.CompressFormat.PNG, 100, it) }
@@ -110,10 +119,16 @@ class ScreenshotTour {
             scenario = it
             waitFor("BALANCE HOY"); shot("01-hoy")
             compose.onNodeWithContentDescription("Comida").performClick(); shot("02-comida")
-            compose.onRoot().performTouchInput { swipeUp(startY = bottom * 0.85f, endY = top + 10f, durationMillis = 400) }
+            compose.onNodeWithContentDescription("Ver semana").performClick(); shot("02c-comida-semana")
+            compose.onRoot().performTouchInput { swipeUp(startY = bottom * 0.7f, endY = top + 10f, durationMillis = 400) }
             shot("02b-comida-dia")
-            compose.onRoot().performTouchInput { swipeUp(startY = bottom * 0.85f, endY = top + 10f, durationMillis = 400) }
-            shot("02c-comida-final")
+            compose.onNodeWithContentDescription("Añadir comida").performClick(); shot("02d-anadir")
+            compose.onNodeWithContentDescription("Añadir Copos de avena integral a la cesta").performClick()
+            compose.onNodeWithContentDescription("Añadir Plátano a la cesta").performClick(); shot("02e-anadir-cesta")
+            compose.onAllNodes(hasText("Leche semidesnatada", substring = true)).let { it[it.fetchSemanticsNodes().size - 1] }.performClick(); shot("02f-ficha")
+            compose.onNodeWithText("Añadir a la cesta").performClick()
+            compose.waitForIdle()
+            compose.onNodeWithContentDescription("Cerrar").performClick()
             compose.onNodeWithContentDescription("Calendario").performClick(); shot("03-calendario-mes")
             compose.onNodeWithText("Año").performClick(); shot("04-calendario-ano")
             compose.onNodeWithText("Semana").performClick(); shot("05-calendario-semana")

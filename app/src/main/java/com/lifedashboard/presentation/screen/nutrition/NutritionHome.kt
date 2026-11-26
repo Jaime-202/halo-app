@@ -9,6 +9,16 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.filled.WaterDrop
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import java.time.Instant
+import java.time.LocalTime
+import java.time.ZoneId
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -71,64 +81,105 @@ internal fun mealHours(key: String): String = when (key) {
 /** Acciones de la pantalla Comida. */
 internal class NutritionHomeActions(
     val selectDate: (LocalDate) -> Unit,
-    val search: (mealType: String) -> Unit,
-    val scan: (mealType: String) -> Unit,
-    val photo: (mealType: String) -> Unit,
-    val label: () -> Unit,
-    val describe: (mealType: String) -> Unit,
-    val quickAdd: (mealType: String) -> Unit,
+    val add: (mealType: String) -> Unit,
+    val quickAddFood: (FoodCatalogItem, String) -> Unit,
+    val repeatYesterday: (String) -> Unit,
     val editMeal: (MealEntryEntity) -> Unit,
-    val quickFood: (FoodCatalogItem) -> Unit,
+    val deleteMeal: (MealEntryEntity) -> Unit,
+    val duplicateMeal: (MealEntryEntity) -> Unit,
+    val addWater: () -> Unit,
     val copyYesterday: () -> Unit,
-    val savedMeals: () -> Unit,
     val saveMeal: () -> Unit,
     val targets: () -> Unit,
     val calculator: () -> Unit,
     val gemini: () -> Unit,
-    val refreshAdvice: () -> Unit,
 )
 
-/**
- * Comida: el plato del día, una barra para registrar y el día como línea de tiempo.
- */
-@Composable
-internal fun NutritionHome(state: NutritionUiState, a: NutritionHomeActions) {
-    LazyColumn(
-        modifier = Modifier.fillMaxSize().background(Obsidian),
-        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 52.dp, bottom = 110.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp),
-    ) {
-        item { HomeHeader(state, a) }
-        item { DayStrip(state.selectedDate, a.selectDate) }
-        item { PlateCard(state, onClick = a.targets) }
-        item { AddBar(a) }
-        item {
-            Text("TU DÍA", color = TextMute, style = mono11, modifier = Modifier.padding(top = 4.dp))
-        }
-        val sections = MealSectionType.entries
-        sections.forEachIndexed { i, section ->
-            item(key = section.key) {
-                TimelineMoment(
-                    section = section,
-                    meals = state.mealsForType(section.key),
-                    isFirst = i == 0,
-                    isLast = i == sections.lastIndex,
-                    a = a,
-                )
-            }
-        }
-        val repeat = (state.favorites + state.recents).distinctBy { NutritionViewModel.foodKey(it.name, it.brand) }.take(12)
-        if (repeat.isNotEmpty()) {
-            item { RepeatCarousel(repeat, state.favoriteKeys, a.quickFood) }
-        }
-        item { DetailsCard(state, a.refreshAdvice) }
+/** Colores de cada momento del día en la barra de calorías. */
+internal fun mealColor(key: String): Color = when (key) {
+    "DESAYUNO" -> Color(0xFFF2C14E)
+    "COMIDA" -> Ion
+    "MERIENDA" -> Color(0xFFE07BB0)
+    "CENA" -> Flux
+    else -> Ember
+}
+
+private val zone = ZoneId.systemDefault()
+
+/** Hora a la que se comió: la del registro si fue ese día; si no, la típica del momento. */
+internal fun mealTime(m: MealEntryEntity): LocalTime {
+    val created = Instant.ofEpochMilli(m.createdAt).atZone(zone)
+    val day = Instant.ofEpochMilli(m.dateMillis).atZone(zone).toLocalDate()
+    return if (created.toLocalDate() == day) created.toLocalTime() else when (m.mealType) {
+        "DESAYUNO" -> LocalTime.of(8, 30); "COMIDA" -> LocalTime.of(14, 30); "MERIENDA" -> LocalTime.of(18, 0)
+        "CENA" -> LocalTime.of(21, 0); else -> LocalTime.of(12, 0)
     }
 }
 
-// ─── Cabecera y días ─────────────────────────────────────────────────────────
+/**
+ * Comida · Hoy: lo que te queda arriba, sugerencias según la hora y el día
+ * ordenado por horas. Registrar está siempre a un toque en la barra inferior.
+ */
+@Composable
+internal fun NutritionHome(state: NutritionUiState, a: NutritionHomeActions) {
+    var showWeek by remember { mutableStateOf(false) }
+    val isToday = state.selectedDate == LocalDate.now()
+    val nowType = defaultMealTypeForNow()
+    Box(Modifier.fillMaxSize().background(Obsidian)) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 52.dp, bottom = 190.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            item { HomeHeader(state, showWeek, { showWeek = !showWeek }, a) }
+            item { DayStrip(state.selectedDate, a.selectDate) }
+            item { RemainingCard(state) }
+            if (showWeek) item { WeekCard(state) }
+            item { WaterRow(state, a.addWater) }
+            if (isToday) {
+                val sugg = state.suggestionsFor(nowType).take(4)
+                item { SuggestedNow(nowType, sugg, onAdd = { a.quickAddFood(it, nowType) }, onRepeat = { a.repeatYesterday(nowType) }) }
+            }
+            if (state.meals.isEmpty()) {
+                item { EmptyDay(onAdd = { a.add(nowType) }) }
+            } else {
+                // Agrupar por momento, ordenado por la hora real de la primera comida de cada grupo
+                val groups = state.meals.groupBy { it.mealType }.entries
+                    .sortedWith(compareBy({ (_, l) -> l.minOf { mealTime(it) } }, { (t, _) -> MealSectionType.entries.indexOfFirst { it.key == t } }))
+                groups.forEach { (type, meals) ->
+                    item(key = "h_$type") { MomentHeader(type, meals) { a.add(type) } }
+                    items(meals.sortedBy { mealTime(it) }, key = { "m_${it.id}" }) { meal ->
+                        SwipeMealRow(meal, onClick = { a.editMeal(meal) }, onDelete = { a.deleteMeal(meal) }, onDuplicate = { a.duplicateMeal(meal) })
+                    }
+                }
+                item { Text("Desliza un alimento a la izquierda para borrarlo o a la derecha para duplicarlo.", color = TextDim, style = MaterialTheme.typography.labelSmall) }
+            }
+        }
+        // Barra fija para registrar
+        val shape = RoundedCornerShape(50)
+        Row(
+            Modifier.align(Alignment.BottomCenter).padding(start = 20.dp, end = 20.dp, bottom = 108.dp).fillMaxWidth()
+                .shadow(16.dp, shape, ambientColor = Ion.copy(alpha = 0.3f), spotColor = Ion.copy(alpha = 0.3f))
+                .clip(shape).background(PanelHigh).border(1.dp, Ion.copy(alpha = 0.6f), shape)
+                .clickable { a.add(if (isToday) nowType else "COMIDA") }
+                .semantics { contentDescription = "Añadir comida" }
+                .padding(horizontal = 18.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(Icons.Outlined.Search, contentDescription = null, tint = Ion)
+            Spacer(Modifier.width(12.dp))
+            Text("¿Qué has comido?", color = TextHigh, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+            Icon(Icons.Outlined.QrCodeScanner, contentDescription = null, tint = TextMute, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(10.dp))
+            Icon(Icons.Outlined.PhotoCamera, contentDescription = null, tint = TextMute, modifier = Modifier.size(20.dp))
+        }
+    }
+}
+
+// ─── Cabecera ────────────────────────────────────────────────────────────────
 
 @Composable
-private fun HomeHeader(state: NutritionUiState, a: NutritionHomeActions) {
+private fun HomeHeader(state: NutritionUiState, showWeek: Boolean, onWeek: () -> Unit, a: NutritionHomeActions) {
     var menu by remember { mutableStateOf(false) }
     Row(verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
@@ -138,11 +189,13 @@ private fun HomeHeader(state: NutritionUiState, a: NutritionHomeActions) {
             )
             Text("Comida", color = TextHigh, style = MaterialTheme.typography.headlineMedium)
         }
+        IconButton(onClick = onWeek) {
+            Icon(Icons.Outlined.BarChart, contentDescription = if (showWeek) "Ocultar semana" else "Ver semana", tint = if (showWeek) Ion else TextHigh)
+        }
         Box {
             IconButton(onClick = { menu = true }) { Icon(Icons.Outlined.MoreVert, contentDescription = "Más opciones", tint = TextHigh) }
             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }, containerColor = Panel) {
-                MenuRow(Icons.Outlined.ContentCopy, "Copiar comidas de ayer") { menu = false; a.copyYesterday() }
-                MenuRow(Icons.Outlined.Bookmarks, "Mis comidas guardadas") { menu = false; a.savedMeals() }
+                MenuRow(Icons.Outlined.ContentCopy, "Copiar todo lo de ayer") { menu = false; a.copyYesterday() }
                 MenuRow(Icons.Outlined.BookmarkAdd, "Guardar una comida") { menu = false; a.saveMeal() }
                 HorizontalDivider(color = Line)
                 MenuRow(Icons.Outlined.Tune, "Objetivos y macros") { menu = false; a.targets() }
@@ -199,293 +252,285 @@ private fun DayStrip(selected: LocalDate, onSelect: (LocalDate) -> Unit) {
     }
 }
 
-// ─── El plato ────────────────────────────────────────────────────────────────
+// ─── Lo que te queda ─────────────────────────────────────────────────────────
 
-/**
- * El plato del día: tres porciones (proteína, hidratos, grasa). El ángulo de cada
- * porción es su parte de las calorías objetivo y se va llenando desde el centro
- * según lo que comes. En el centro, las calorías que te quedan.
- */
 @Composable
-private fun PlateCard(state: NutritionUiState, onClick: () -> Unit) {
-    val shape = RoundedCornerShape(28.dp)
-    val pK = state.targetProtein * 4f
-    val cK = state.targetCarbs * 4f
-    val fK = state.targetFat * 9f
-    val totalK = (pK + cK + fK).takeIf { it > 0f } ?: 1f
-    val shares = listOf(pK / totalK, cK / totalK, fK / totalK)
-    val progress = listOf(
-        if (state.targetProtein > 0) (state.totalProtein / state.targetProtein).safe().coerceIn(0f, 1f) else 0f,
-        if (state.targetCarbs > 0) (state.totalCarbs / state.targetCarbs).safe().coerceIn(0f, 1f) else 0f,
-        if (state.targetFat > 0) (state.totalFat / state.targetFat).safe().coerceIn(0f, 1f) else 0f,
-    )
-    val anim = remember { Animatable(0f) }
-    LaunchedEffect(state.selectedDate) { anim.snapTo(0f); anim.animateTo(1f, tween(900)) }
-    val colors = listOf(MacroColors.protein, MacroColors.carbs, MacroColors.fat)
+private fun RemainingCard(state: NutritionUiState) {
+    val shape = RoundedCornerShape(26.dp)
+    val target = state.targetCalories.coerceAtLeast(1f)
     val remaining = (state.targetCalories - state.totalCalories).safe()
+    val proteinLeft = (state.targetProtein - state.totalProtein).safe().coerceAtLeast(0f)
+    val byType = MealSectionType.entries.map { it.key to state.mealsForType(it.key).sumOf { m -> m.calories.safe().toDouble() }.toFloat() }.filter { it.second > 0f }
+    val anim = remember { Animatable(0f) }
+    LaunchedEffect(state.selectedDate) { anim.snapTo(0f); anim.animateTo(1f, tween(800)) }
 
     Column(
-        Modifier.fillMaxWidth().clip(shape).background(Panel).border(1.dp, Line, shape).clickable(onClick = onClick).padding(18.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-            val rim = LineStrong
-            val track = Line
-            Canvas(Modifier.size(220.dp)) {
-                val r = size.minDimension / 2f
-                val c = Offset(size.width / 2f, size.height / 2f)
-                // Borde del plato
-                drawCircle(rim, radius = r, center = c, style = Stroke(width = 2.dp.toPx()))
-                drawCircle(rim.copy(alpha = 0.5f), radius = r - 10.dp.toPx(), center = c, style = Stroke(width = 1.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(4f, 8f))))
-                val inner = r * 0.36f
-                val outer = r - 16.dp.toPx()
-                var start = -90f
-                shares.forEachIndexed { i, share ->
-                    val sweep = 360f * share - 3f
-                    // Porción vacía
-                    drawArc(track, start, sweep, true, Offset(c.x - outer, c.y - outer), Size(outer * 2, outer * 2))
-                    // Porción llena según el progreso
-                    val filled = inner + (outer - inner) * progress[i] * anim.value
-                    if (progress[i] > 0f) {
-                        drawArc(colors[i], start, sweep, true, Offset(c.x - filled, c.y - filled), Size(filled * 2, filled * 2))
-                    }
-                    start += 360f * share
-                }
-                // Hueco central
-                drawCircle(Color.Black.copy(alpha = 0f), inner, c)
-            }
-            Box(Modifier.size(110.dp).clip(CircleShape).background(Panel), contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        if (remaining >= 0) "${remaining.roundToInt()}" else "+${(-remaining).roundToInt()}",
-                        color = TextHigh, style = MaterialTheme.typography.headlineMedium,
-                    )
-                    Text(if (remaining >= 0) "kcal quedan" else "kcal de más", color = TextMute, style = MaterialTheme.typography.labelSmall)
-                }
-            }
-        }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            MacroLegend("Proteína", state.totalProtein, state.targetProtein, MacroColors.protein)
-            MacroLegend("Hidratos", state.totalCarbs, state.targetCarbs, MacroColors.carbs)
-            MacroLegend("Grasa", state.totalFat, state.targetFat, MacroColors.fat)
-        }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text("${state.totalCalories.safe().roundToInt()} de ${state.targetCalories.roundToInt()} kcal", color = TextMute, style = MaterialTheme.typography.labelMedium)
-            if (state.activeBurnedCalories > 0f) {
-                Text("+${state.activeBurnedCalories.roundToInt()} kcal en movimiento", color = TextMute, style = MaterialTheme.typography.labelMedium)
-            }
-        }
-    }
-}
-
-@Composable
-private fun MacroLegend(label: String, value: Float, target: Float, color: Color) {
-    Column {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(8.dp).clip(CircleShape).background(color))
-            Spacer(Modifier.width(6.dp))
-            Text(label.uppercase(), color = TextMute, style = mono11)
-        }
-        Row(verticalAlignment = Alignment.Bottom) {
-            Text("${value.safe().roundToInt()}", color = TextHigh, style = MaterialTheme.typography.titleLarge)
-            Text(" / ${target.roundToInt()} g", color = TextMute, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(bottom = 3.dp))
-        }
-    }
-}
-
-// ─── Barra para registrar ────────────────────────────────────────────────────
-
-@Composable
-private fun AddBar(a: NutritionHomeActions) {
-    val now = defaultMealTypeForNow()
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        val shape = RoundedCornerShape(50)
-        Row(
-            Modifier.fillMaxWidth().clip(shape).background(Panel).border(1.dp, LineStrong, shape)
-                .clickable { a.search(now) }.padding(horizontal = 18.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(Icons.Outlined.Search, contentDescription = null, tint = Ion)
-            Spacer(Modifier.width(12.dp))
-            Text("¿Qué has comido?", color = TextMute, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-            Text(MealSectionType.labelFor(now), color = TextDim, style = MaterialTheme.typography.labelMedium)
-        }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            AddChip(Icons.Outlined.QrCodeScanner, "Código", Modifier.weight(1f)) { a.scan(now) }
-            AddChip(Icons.Outlined.PhotoCamera, "Foto", Modifier.weight(1f)) { a.photo(now) }
-            AddChip(Icons.Outlined.DocumentScanner, "Etiqueta", Modifier.weight(1f)) { a.label() }
-            AddChip(Icons.Outlined.AutoAwesome, "Describir", Modifier.weight(1f)) { a.describe(now) }
-        }
-    }
-}
-
-@Composable
-private fun AddChip(icon: ImageVector, label: String, modifier: Modifier, onClick: () -> Unit) {
-    val shape = RoundedCornerShape(18.dp)
-    Column(
-        modifier.clip(shape).background(PanelHigh).clickable(onClick = onClick).padding(vertical = 12.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        Icon(icon, contentDescription = null, tint = Ion, modifier = Modifier.size(22.dp))
-        Text(label, color = TextHigh, style = MaterialTheme.typography.labelMedium, maxLines = 1)
-    }
-}
-
-// ─── Línea de tiempo del día ─────────────────────────────────────────────────
-
-@Composable
-private fun TimelineMoment(
-    section: MealSectionType,
-    meals: List<MealEntryEntity>,
-    isFirst: Boolean,
-    isLast: Boolean,
-    a: NutritionHomeActions,
-) {
-    val kcal = meals.sumOf { it.calories.safe().toDouble() }.roundToInt()
-    val done = meals.isNotEmpty()
-    Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
-        // Eje: línea vertical con el icono del momento
-        Box(Modifier.width(44.dp).fillMaxHeight(), contentAlignment = Alignment.TopCenter) {
-            val line = Line
-            Canvas(Modifier.fillMaxSize()) {
-                val x = size.width / 2
-                if (!isFirst) drawLine(line, Offset(x, 0f), Offset(x, 22.dp.toPx()), strokeWidth = 2.dp.toPx())
-                if (!isLast) drawLine(line, Offset(x, 22.dp.toPx()), Offset(x, size.height), strokeWidth = 2.dp.toPx())
-            }
-            Box(
-                Modifier.size(40.dp).clip(CircleShape).background(if (done) Ion else Panel).border(1.dp, if (done) Ion else LineStrong, CircleShape),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(mealIcon(section.key), contentDescription = null, tint = if (done) OnAccent else TextMute, modifier = Modifier.size(20.dp))
-            }
-        }
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f).padding(bottom = 18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.heightIn(min = 40.dp)) {
-                Column(Modifier.weight(1f)) {
-                    Text(section.title, color = TextHigh, style = MaterialTheme.typography.titleMedium)
-                    Text(if (done) "$kcal kcal" else mealHours(section.key), color = if (done) Ion else TextDim, style = MaterialTheme.typography.labelMedium)
-                }
-                IconButton(onClick = { a.search(section.key) }) {
-                    Icon(Icons.Outlined.AddCircleOutline, contentDescription = "Añadir a ${section.title}", tint = Ion)
-                }
-            }
-            meals.forEach { meal -> FoodRow(meal) { a.editMeal(meal) } }
-            if (!done) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    SmallAction("Buscar") { a.search(section.key) }
-                    SmallAction("Foto") { a.photo(section.key) }
-                    SmallAction("Rápido") { a.quickAdd(section.key) }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun SmallAction(label: String, onClick: () -> Unit) {
-    val shape = RoundedCornerShape(50)
-    Box(
-        Modifier.clip(shape).border(1.dp, LineStrong, shape).clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 6.dp)
-    ) { Text(label, color = TextMute, style = MaterialTheme.typography.labelMedium) }
-}
-
-@Composable
-private fun FoodRow(meal: MealEntryEntity, onClick: () -> Unit) {
-    val shape = RoundedCornerShape(16.dp)
-    Row(
-        Modifier.fillMaxWidth().clip(shape).background(Panel).clickable(onClick = onClick).padding(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        FoodThumbnail(name = meal.name, brand = meal.brand, imageUrl = meal.imageUrl, size = 44.dp)
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
-            Text(meal.name, color = TextHigh, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            val brand = meal.brand.takeIf { it.isNotBlank() && it != "Manual" && it != "Básico" }
-            Text(
-                listOfNotNull(brand, "${meal.grams.roundToInt()} g", "P ${meal.protein.safe().roundToInt()} · H ${meal.carbs.safe().roundToInt()} · G ${meal.fat.safe().roundToInt()}").joinToString(" · "),
-                color = TextMute, style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis,
-            )
-        }
-        Spacer(Modifier.width(8.dp))
-        Text("${meal.calories.safe().roundToInt()}", color = TextHigh, style = TextStyle(fontFamily = MonoFamily, fontSize = 14.sp))
-        Text(" kcal", color = TextMute, style = MaterialTheme.typography.labelSmall)
-    }
-}
-
-// ─── Para repetir ────────────────────────────────────────────────────────────
-
-@Composable
-private fun RepeatCarousel(foods: List<FoodCatalogItem>, favoriteKeys: Set<String>, onPick: (FoodCatalogItem) -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text("PARA REPETIR", color = TextMute, style = mono11)
-        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            foods.forEach { food ->
-                val shape = RoundedCornerShape(18.dp)
-                Column(
-                    Modifier.width(132.dp).clip(shape).background(Panel).border(1.dp, Line, shape).clickable { onPick(food) },
-                ) {
-                    Box {
-                        FoodThumbnail(name = food.name, brand = food.brand, imageUrl = food.imageUrl, size = 132.dp, modifier = Modifier.height(88.dp))
-                        if (NutritionViewModel.foodKey(food.name, food.brand) in favoriteKeys) {
-                            Icon(
-                                Icons.Outlined.Star, contentDescription = "Favorito", tint = Ion,
-                                modifier = Modifier.align(Alignment.TopEnd).padding(6.dp).size(18.dp),
-                            )
-                        }
-                    }
-                    Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Text(food.name, color = TextHigh, style = MaterialTheme.typography.labelLarge, maxLines = 2, overflow = TextOverflow.Ellipsis, minLines = 2)
-                        Text(
-                            "${(food.caloriesPer100g * food.servingSizeGrams / 100f).safe().roundToInt()} kcal · ${food.servingSizeGrams.roundToInt()} g",
-                            color = TextMute, style = MaterialTheme.typography.labelSmall,
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-// ─── Detalle: fibra, azúcar, sal y consejo ───────────────────────────────────
-
-@Composable
-private fun DetailsCard(state: NutritionUiState, onRefresh: () -> Unit) {
-    val shape = RoundedCornerShape(22.dp)
-    Column(
-        Modifier.fillMaxWidth().clip(shape).background(Panel).border(1.dp, Line, shape).padding(16.dp),
+        Modifier.fillMaxWidth().clip(shape).background(Panel).border(1.dp, Line, shape).padding(18.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Mini("Fibra", "${state.totalFiber.safe().roundToInt()} g", "objetivo 25–30 g")
-            Mini("Azúcar", "${state.totalSugar.safe().roundToInt()} g", "máx. 50 g")
-            Mini("Sal", "%.1f g".format(es, state.totalSalt.safe()), "máx. 5 g")
+        Column {
+            Text(if (remaining >= 0) "TE QUEDAN" else "POR ENCIMA DEL OBJETIVO", color = TextMute, style = mono11)
+            Row(verticalAlignment = Alignment.Bottom) {
+                Text("%,d".format(es, kotlin.math.abs(remaining).roundToInt()), color = TextHigh, style = MaterialTheme.typography.displayMedium)
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    if (remaining >= 0) "kcal · ${proteinLeft.roundToInt()} g de proteína" else "kcal",
+                    color = TextMute, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(bottom = 10.dp),
+                )
+            }
         }
-        HorizontalDivider(color = Line)
-        Row(verticalAlignment = Alignment.Top) {
-            Icon(Icons.Outlined.TipsAndUpdates, contentDescription = null, tint = Ion, modifier = Modifier.size(20.dp))
-            Spacer(Modifier.width(10.dp))
-            Text(
-                when {
-                    state.isAdviceLoading -> "Preparando un consejo…"
-                    !state.nutritionAdvice.isNullOrBlank() -> state.nutritionAdvice!!
-                    else -> "Registra lo que comes y aquí verás un consejo para el resto del día."
-                },
-                color = TextHigh, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f),
-            )
-            IconButton(onClick = onRefresh, modifier = Modifier.size(28.dp)) {
-                Icon(Icons.Outlined.Refresh, contentDescription = "Nuevo consejo", tint = TextMute, modifier = Modifier.size(18.dp))
+        // Barra del día: un tramo por momento
+        Row(Modifier.fillMaxWidth().height(12.dp).clip(RoundedCornerShape(6.dp)).background(Line)) {
+            byType.forEach { (k, kcal) ->
+                Box(Modifier.fillMaxHeight().weight((kcal / target * anim.value).coerceAtLeast(0.001f)).background(mealColor(k)))
+                Spacer(Modifier.width(2.dp))
+            }
+            val rest = (1f - state.totalCalories.safe() / target * anim.value).coerceAtLeast(0f)
+            if (rest > 0f) Spacer(Modifier.weight(rest))
+        }
+        if (byType.isNotEmpty()) {
+            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                byType.forEach { (k, kcal) ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.size(8.dp).clip(CircleShape).background(mealColor(k)))
+                        Spacer(Modifier.width(5.dp))
+                        Text("${MealSectionType.labelFor(k)} ${kcal.roundToInt()}", color = TextMute, style = MaterialTheme.typography.labelMedium, maxLines = 1)
+                    }
+                }
+            }
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            MacroMini("Proteína", state.totalProtein, state.targetProtein, MacroColors.protein, Modifier.weight(1f))
+            MacroMini("Hidratos", state.totalCarbs, state.targetCarbs, MacroColors.carbs, Modifier.weight(1f))
+            MacroMini("Grasa", state.totalFat, state.targetFat, MacroColors.fat, Modifier.weight(1f))
+        }
+        Text(
+            "${state.totalCalories.safe().roundToInt()} de ${state.targetCalories.roundToInt()} kcal" +
+                if (state.activeBurnedCalories > 0f) " · ${state.activeBurnedCalories.roundToInt()} kcal en movimiento" else "",
+            color = TextDim, style = MaterialTheme.typography.labelSmall,
+        )
+    }
+}
+
+@Composable
+private fun MacroMini(label: String, value: Float, target: Float, color: Color, modifier: Modifier) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(label.uppercase(), color = TextMute, style = mono11)
+        Row(verticalAlignment = Alignment.Bottom) {
+            Text("${value.safe().roundToInt()}", color = TextHigh, style = MaterialTheme.typography.titleMedium)
+            Text("/${target.roundToInt()} g", color = TextMute, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(bottom = 2.dp))
+        }
+        Box(Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)).background(Line)) {
+            Box(Modifier.fillMaxWidth(if (target > 0) (value.safe() / target).coerceIn(0f, 1f) else 0f).fillMaxHeight().background(color))
+        }
+    }
+}
+
+// ─── Semana ──────────────────────────────────────────────────────────────────
+
+@Composable
+private fun WeekCard(state: NutritionUiState) {
+    val shape = RoundedCornerShape(22.dp)
+    val target = state.targetCalories.coerceAtLeast(1f)
+    val logged = state.weekDays.filter { it.kcal > 0f }
+    val max = maxOf(state.weekDays.maxOfOrNull { it.kcal } ?: 0f, target) * 1.1f
+    Column(
+        Modifier.fillMaxWidth().clip(shape).background(Panel).border(1.dp, Line, shape).padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Row {
+            Text("ÚLTIMOS 7 DÍAS", color = TextMute, style = mono11, modifier = Modifier.weight(1f))
+            if (logged.isNotEmpty()) Text("media ${logged.map { it.kcal }.average().roundToInt()} kcal", color = TextMute, style = MaterialTheme.typography.labelSmall)
+        }
+        Box(Modifier.fillMaxWidth().height(110.dp)) {
+            val line = TextDim
+            Canvas(Modifier.fillMaxSize()) {
+                // Mismo origen que las barras: base = alto - etiqueta; barras de 96 dp como máximo
+                val base = size.height - 14.dp.toPx()
+                val y = base - 96.dp.toPx() * (target / max)
+                drawLine(line, Offset(0f, y), Offset(size.width, y), strokeWidth = 1.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 8f)))
+            }
+            Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Bottom) {
+                state.weekDays.forEach { d ->
+                    val sel = d.date == state.selectedDate
+                    Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Box(
+                            Modifier.fillMaxWidth().height((96f * (d.kcal / max)).coerceAtLeast(3f).dp)
+                                .clip(RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp, bottomStart = 2.dp, bottomEnd = 2.dp))
+                                .background(if (d.kcal > target * 1.1f) Ember else if (sel) Ion else Flux.copy(alpha = 0.7f))
+                        )
+                        Text(d.date.dayOfWeek.getDisplayName(JTextStyle.NARROW, es).uppercase(), color = if (sel) TextHigh else TextMute, style = mono11)
+                    }
+                }
+            }
+        }
+        if (logged.isNotEmpty()) {
+            val avgP = logged.map { it.protein }.average().roundToInt()
+            val inTarget = logged.count { kotlin.math.abs(it.kcal - target) <= target * 0.1f }
+            Text("Proteína media $avgP g · $inTarget de ${logged.size} días cerca del objetivo (±10 %)", color = TextMute, style = MaterialTheme.typography.bodySmall)
+        }
+        val top = state.recentEntries.groupBy { it.name }.entries.sortedByDescending { it.value.size }.take(3).map { it.key }
+        if (top.isNotEmpty()) Text("Lo que más repites: ${top.joinToString(", ")}", color = TextMute, style = MaterialTheme.typography.bodySmall)
+    }
+}
+
+// ─── Agua ────────────────────────────────────────────────────────────────────
+
+@Composable
+private fun WaterRow(state: NutritionUiState, onAdd: () -> Unit) {
+    val glasses = (state.waterTargetMl / 250).coerceIn(4, 12)
+    val filled = state.waterMl / 250
+    val shape = RoundedCornerShape(20.dp)
+    Row(
+        Modifier.fillMaxWidth().clip(shape).background(Panel).border(1.dp, Line, shape).padding(horizontal = 14.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.width(76.dp)) {
+            Text("AGUA", color = TextMute, style = mono11)
+            Text("%.1f / %.1f L".format(es, state.waterMl / 1000f, state.waterTargetMl / 1000f), color = TextHigh, style = MaterialTheme.typography.labelMedium)
+        }
+        Row(Modifier.weight(1f), horizontalArrangement = Arrangement.SpaceBetween) {
+            (0 until glasses).forEach { i ->
+                val on = i < filled
+                Icon(
+                    if (on) Icons.Filled.WaterDrop else Icons.Outlined.WaterDrop,
+                    contentDescription = if (i == filled) "Añadir un vaso de agua" else null,
+                    tint = if (on) Flux else LineStrong,
+                    modifier = Modifier.size(22.dp).clip(CircleShape).clickable(enabled = i >= filled, onClick = onAdd),
+                )
             }
         }
     }
 }
 
+// ─── Sugerido ahora ──────────────────────────────────────────────────────────
+
 @Composable
-private fun Mini(label: String, value: String, hint: String) {
-    Column {
-        Text(label.uppercase(), color = TextMute, style = mono11)
-        Text(value, color = TextHigh, style = MaterialTheme.typography.titleMedium)
-        Text(hint, color = TextDim, style = MaterialTheme.typography.labelSmall)
+private fun SuggestedNow(type: String, foods: List<FoodCatalogItem>, onAdd: (FoodCatalogItem) -> Unit, onRepeat: () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("SUGERIDO AHORA · ${MealSectionType.labelFor(type).uppercase()}", color = TextMute, style = mono11)
+        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            foods.forEach { f ->
+                val s = RoundedCornerShape(50)
+                Row(
+                    Modifier.clip(s).background(PanelHigh).border(1.dp, Ion.copy(alpha = 0.4f), s).clickable { onAdd(f) }
+                        .semantics { contentDescription = "Añadir ${f.name}" }
+                        .padding(start = 4.dp, end = 12.dp, top = 4.dp, bottom = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(Modifier.size(28.dp).clip(CircleShape)) { FoodThumbnail(f.name, f.brand, f.imageUrl, size = 28.dp) }
+                    Spacer(Modifier.width(8.dp))
+                    Text(f.name, color = TextHigh, style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 150.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Icon(Icons.Outlined.Add, contentDescription = null, tint = Ion, modifier = Modifier.size(16.dp))
+                }
+            }
+            val s = RoundedCornerShape(50)
+            Row(
+                Modifier.clip(s).border(1.dp, LineStrong, s).clickable(onClick = onRepeat).padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(Icons.Outlined.History, contentDescription = null, tint = TextMute, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(6.dp))
+                Text("Lo de ayer", color = TextHigh, style = MaterialTheme.typography.labelLarge)
+            }
+        }
+    }
+}
+
+// ─── Día vacío ───────────────────────────────────────────────────────────────
+
+@Composable
+private fun EmptyDay(onAdd: () -> Unit) {
+    val shape = RoundedCornerShape(26.dp)
+    Column(
+        Modifier.fillMaxWidth().clip(shape).border(1.dp, Line, shape).clickable(onClick = onAdd).padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        // Ilustración: plato vacío con cubiertos
+        val rim = LineStrong; val accent = Ion
+        Canvas(Modifier.size(width = 150.dp, height = 90.dp)) {
+            val c = Offset(size.width / 2, size.height / 2)
+            val r = size.height / 2 - 4.dp.toPx()
+            drawCircle(rim, r, c, style = Stroke(2.dp.toPx()))
+            drawCircle(rim.copy(alpha = 0.6f), r * 0.68f, c, style = Stroke(1.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(5f, 7f))))
+            drawArc(accent, -100f, 40f, false, Offset(c.x - r * 0.68f, c.y - r * 0.68f), Size(r * 1.36f, r * 1.36f), style = Stroke(3.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round))
+            val fx = c.x - r - 18.dp.toPx(); val kx = c.x + r + 18.dp.toPx()
+            drawLine(rim, Offset(fx, 8.dp.toPx()), Offset(fx, size.height - 8.dp.toPx()), 2.dp.toPx())
+            listOf(-5, 0, 5).forEach { dx -> drawLine(rim, Offset(fx + dx.dp.toPx(), 8.dp.toPx()), Offset(fx + dx.dp.toPx(), 26.dp.toPx()), 1.5.dp.toPx()) }
+            drawLine(rim, Offset(kx, 8.dp.toPx()), Offset(kx, size.height - 8.dp.toPx()), 2.dp.toPx())
+            drawRoundRect(rim, Offset(kx - 3.dp.toPx(), 8.dp.toPx()), Size(6.dp.toPx(), 26.dp.toPx()), androidx.compose.ui.geometry.CornerRadius(3.dp.toPx()))
+        }
+        Text("Aún no has apuntado nada", color = TextHigh, style = MaterialTheme.typography.titleMedium)
+        Text("Busca, escanea o haz una foto. Puedes añadir varios alimentos a la vez.", color = TextMute, style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
+    }
+}
+
+// ─── El día por horas ────────────────────────────────────────────────────────
+
+@Composable
+private fun MomentHeader(type: String, meals: List<MealEntryEntity>, onAdd: () -> Unit) {
+    val time = meals.minOf { mealTime(it) }
+    val kcal = meals.sumOf { it.calories.safe().toDouble() }.roundToInt()
+    Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(34.dp).clip(CircleShape).background(mealColor(type).copy(alpha = 0.18f)), contentAlignment = Alignment.Center) {
+            Icon(mealIcon(type), contentDescription = null, tint = mealColor(type), modifier = Modifier.size(18.dp))
+        }
+        Spacer(Modifier.width(10.dp))
+        Column(Modifier.weight(1f)) {
+            Text(MealSectionType.labelFor(type), color = TextHigh, style = MaterialTheme.typography.titleMedium)
+            Text("${time.format(DateTimeFormatter.ofPattern("HH:mm"))} · $kcal kcal", color = TextMute, style = MaterialTheme.typography.labelMedium)
+        }
+        IconButton(onClick = onAdd) { Icon(Icons.Outlined.AddCircleOutline, contentDescription = "Añadir a ${MealSectionType.labelFor(type)}", tint = Ion) }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SwipeMealRow(meal: MealEntryEntity, onClick: () -> Unit, onDelete: () -> Unit, onDuplicate: () -> Unit) {
+    val haptics = LocalHapticFeedback.current
+    val state = rememberSwipeToDismissBoxState(
+        confirmValueChange = { v ->
+            when (v) {
+                SwipeToDismissBoxValue.EndToStart -> { haptics.performHapticFeedback(HapticFeedbackType.LongPress); onDelete(); true }
+                SwipeToDismissBoxValue.StartToEnd -> { haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove); onDuplicate(); false }
+                else -> false
+            }
+        },
+    )
+    SwipeToDismissBox(
+        state = state,
+        backgroundContent = {
+            val toDelete = state.dismissDirection == SwipeToDismissBoxValue.EndToStart
+            Row(
+                Modifier.fillMaxSize().clip(RoundedCornerShape(18.dp)).background(if (toDelete) Rose400.copy(alpha = 0.2f) else Ion.copy(alpha = 0.15f)).padding(horizontal = 18.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = if (toDelete) Arrangement.End else Arrangement.Start,
+            ) {
+                Icon(if (toDelete) Icons.Outlined.DeleteOutline else Icons.Outlined.ContentCopy, contentDescription = null, tint = if (toDelete) Rose400 else Ion)
+                Spacer(Modifier.width(8.dp))
+                Text(if (toDelete) "Borrar" else "Duplicar", color = if (toDelete) Rose400 else Ion, style = MaterialTheme.typography.labelLarge)
+            }
+        },
+    ) {
+        val shape = RoundedCornerShape(18.dp)
+        Row(
+            Modifier.fillMaxWidth().clip(shape).background(Panel).clickable(onClick = onClick).padding(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            FoodThumbnail(name = meal.name, brand = meal.brand, imageUrl = meal.imageUrl, size = 46.dp)
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(meal.name, color = TextHigh, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                val brand = meal.brand.takeIf { it.isNotBlank() && it != "Manual" && it != "Básico" }
+                Text(
+                    listOfNotNull(brand, "${meal.grams.roundToInt()} g", "P ${meal.protein.safe().roundToInt()} · H ${meal.carbs.safe().roundToInt()} · G ${meal.fat.safe().roundToInt()}").joinToString(" · "),
+                    color = TextMute, style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Spacer(Modifier.width(8.dp))
+            Text("${meal.calories.safe().roundToInt()}", color = TextHigh, style = TextStyle(fontFamily = MonoFamily, fontSize = 15.sp))
+            Text(" kcal", color = TextMute, style = MaterialTheme.typography.labelSmall)
+        }
     }
 }

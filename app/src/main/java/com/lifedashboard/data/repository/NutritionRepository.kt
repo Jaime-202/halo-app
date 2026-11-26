@@ -49,8 +49,8 @@ class NutritionRepository @Inject constructor(
         com.lifedashboard.core.worker.WidgetUpdateWorker.updateAllWidgets(context)
     }
 
-    suspend fun searchFoods(query: String, category: FoodSourceCategory): List<FoodCatalogItem> {
-        return catalogService.searchFoods(query, category)
+    suspend fun searchFoods(query: String, category: FoodSourceCategory, includeRemote: Boolean = true): List<FoodCatalogItem> {
+        return catalogService.searchFoods(query, category, includeRemote)
     }
 
     suspend fun findFoodByBarcode(barcode: String): FoodCatalogItem? {

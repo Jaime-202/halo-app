@@ -45,6 +45,14 @@ data class CalculatedIntake(
     val tdee: Float = 0f
 )
 
+/** Resumen de un día para la vista semanal de Comida. */
+data class NutritionDay(val date: LocalDate, val kcal: Float, val protein: Float)
+
+/** Un alimento en la cesta: qué es y cuántos gramos. */
+data class BasketItem(val food: FoodCatalogItem, val grams: Float) {
+    val kcal: Float get() = food.caloriesPer100g * grams / 100f
+}
+
 data class NutritionUiState(
     val selectedDate: LocalDate = LocalDate.now(),
     val meals: List<MealEntryEntity> = emptyList(),
@@ -112,8 +120,32 @@ data class NutritionUiState(
     val isReadingLabel: Boolean = false,
     val labelValues: com.lifedashboard.domain.food.LabelValues? = null,
     val labelMealType: String = "COMIDA",
-    val libraryMessage: String? = null
+    val libraryMessage: String? = null,
+
+    // Comida (diseño nuevo)
+    val recentEntries: List<MealEntryEntity> = emptyList(),
+    val waterMl: Int = 0,
+    val waterTargetMl: Int = 2500,
+    val weekDays: List<NutritionDay> = emptyList()
 ) {
+    /** Lo que sueles comer en ese momento del día, por frecuencia (máx. 6). */
+    fun suggestionsFor(mealType: String): List<FoodCatalogItem> = recentEntries
+        .filter { it.mealType == mealType && it.grams > 0f && it.brand != "Manual" }
+        .groupBy { "${it.name.trim().lowercase()}|${it.brand.trim().lowercase()}" }
+        .entries.sortedByDescending { it.value.size }
+        .take(6)
+        .map { (_, list) ->
+            val e = list.first()
+            val f = 100f / e.grams
+            FoodCatalogItem(
+                id = "sug_${e.name}", name = e.name, brand = e.brand,
+                caloriesPer100g = e.calories * f, proteinPer100g = e.protein * f,
+                carbsPer100g = e.carbs * f, fatPer100g = e.fat * f,
+                servingSizeGrams = e.grams, servingDescription = "${e.grams.toInt()} g",
+                imageUrl = e.imageUrl, fiberPer100g = e.fiber * f, sugarPer100g = e.sugar * f, saltPer100g = e.salt * f
+            )
+        }
+
     val totalFiber: Float get() = meals.sumOf { it.fiber.toDouble() }.toFloat()
     val totalSugar: Float get() = meals.sumOf { it.sugar.toDouble() }.toFloat()
     val totalSalt: Float get() = meals.sumOf { it.salt.toDouble() }.toFloat()
@@ -140,6 +172,8 @@ class NutritionViewModel @Inject constructor(
     private val weightDao: WeightDao,
     private val healthDao: HealthDao,
     private val foodLibraryDao: com.lifedashboard.data.local.dao.FoodLibraryDao,
+    private val waterIntakeDao: com.lifedashboard.data.local.dao.WaterIntakeDao,
+    private val mealDao: com.lifedashboard.data.local.dao.MealDao,
     @dagger.hilt.android.qualifiers.ApplicationContext private val context: android.content.Context
 ) : ViewModel() {
 
@@ -214,6 +248,7 @@ class NutritionViewModel @Inject constructor(
 
     fun selectDate(date: LocalDate) {
         _uiState.update { it.copy(selectedDate = date) }
+        observeDayExtras(date)
         observeMealsForDate(date)
         loadHealthDataForDate(date)
         viewModelScope.launch {
@@ -263,9 +298,16 @@ class NutritionViewModel @Inject constructor(
 
     private suspend fun executeSearch(query: String, category: FoodSourceCategory) {
         _uiState.update { it.copy(isSearching = true) }
-        val results = repository.searchFoods(query, category)
-        _uiState.update { it.copy(searchResults = results, isSearching = false) }
+        // 1) Al instante: lo que ya está en el móvil (genéricos y catálogos)
+        val local = repository.searchFoods(query, category, includeRemote = false)
+        _uiState.update { it.copy(searchResults = local, isSearching = query.trim().length >= 2 && local.size < 12) }
+        // 2) Después: productos de supermercado de Open Food Facts
+        if (query.trim().length >= 2 && local.size < 12) {
+            val full = repository.searchFoods(query, category)
+            _uiState.update { it.copy(searchResults = full, isSearching = false) }
+        }
     }
+
 
     fun onBarcodeDetected(rawCode: String, mealType: String) {
         viewModelScope.launch {
@@ -370,7 +412,7 @@ class NutritionViewModel @Inject constructor(
                     .distinctBy { foodKey(it.name, it.brand) }
                     .take(15)
                     .map { it.toPer100CatalogItem() }
-                _uiState.update { it.copy(recents = recents) }
+                _uiState.update { it.copy(recents = recents, recentEntries = entries) }
             }
             .launchIn(viewModelScope)
     }
@@ -569,6 +611,81 @@ class NutritionViewModel @Inject constructor(
     companion object {
         fun foodKey(name: String, brand: String): String =
             "${name.trim().lowercase()}|${brand.trim().lowercase()}"
+    }
+
+    // ─── Comida: cesta, duplicar, repetir, agua y semana ──────────────────────
+
+    /** Añade varios alimentos de golpe al momento indicado. */
+    fun addBasket(items: List<BasketItem>, mealType: String) {
+        items.forEach { addFoodFromCatalog(it.food, it.grams, mealType) }
+        if (items.isNotEmpty()) _uiState.update { it.copy(libraryMessage = if (items.size == 1) "Añadido" else "${items.size} alimentos añadidos") }
+    }
+
+    fun duplicateMeal(meal: MealEntryEntity) {
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.insertMeal(meal.copy(id = 0, createdAt = System.currentTimeMillis()))
+        }
+    }
+
+    /** Repite lo que comiste ayer en ese mismo momento del día. */
+    fun repeatYesterday(mealType: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val zone = ZoneId.systemDefault()
+            val target = _uiState.value.selectedDate
+            val start = target.minusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
+            val end = target.atStartOfDay(zone).toInstant().toEpochMilli() - 1
+            val src = repository.mealsBetween(start, end).filter { it.mealType == mealType }
+            if (src.isEmpty()) {
+                _uiState.update { it.copy(libraryMessage = "Ayer no apuntaste ${MealSectionType.labelFor(mealType).lowercase()}") }
+                return@launch
+            }
+            val day = target.atStartOfDay(zone).toInstant().toEpochMilli()
+            val now = System.currentTimeMillis()
+            repository.insertMeals(src.map { it.copy(id = 0, dateMillis = day, createdAt = now) })
+            _uiState.update { it.copy(libraryMessage = "${MealSectionType.labelFor(mealType)} de ayer repetido") }
+        }
+    }
+
+    fun addWater(ml: Int) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val day = _uiState.value.selectedDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+            waterIntakeDao.insert(
+                com.lifedashboard.data.local.entity.WaterIntakeEntity(dateMillis = day, timestampMillis = System.currentTimeMillis(), amountMl = ml)
+            )
+        }
+    }
+
+    private var waterJob: kotlinx.coroutines.Job? = null
+    private var weekJob: kotlinx.coroutines.Job? = null
+
+    /** Agua del día y resumen de los 7 días que terminan en el día elegido. */
+    private fun observeDayExtras(date: LocalDate) {
+        val zone = ZoneId.systemDefault()
+        val day = date.atStartOfDay(zone).toInstant().toEpochMilli()
+        waterJob?.cancel()
+        waterJob = waterIntakeDao.getTotalForDay(day)
+            .onEach { ml -> _uiState.update { it.copy(waterMl = ml ?: 0) } }
+            .launchIn(viewModelScope)
+        weekJob?.cancel()
+        val from = date.minusDays(6)
+        weekJob = mealDao.observeMealsForDay(from.atStartOfDay(zone).toInstant().toEpochMilli(), date.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli() - 1)
+            .onEach { meals ->
+                val byDay = meals.groupBy { java.time.Instant.ofEpochMilli(it.dateMillis).atZone(zone).toLocalDate() }
+                val days = (0..6).map { i ->
+                    val d = from.plusDays(i.toLong())
+                    val l = byDay[d].orEmpty()
+                    NutritionDay(d, l.sumOf { it.calories.toDouble() }.toFloat(), l.sumOf { it.protein.toDouble() }.toFloat())
+                }
+                _uiState.update { it.copy(weekDays = days) }
+            }
+            .launchIn(viewModelScope)
+    }
+
+    init {
+        viewModelScope.launch {
+            userPreferences.userGoals.collect { g -> _uiState.update { it.copy(waterTargetMl = g.waterTargetMl) } }
+        }
+        observeDayExtras(LocalDate.now())
     }
 
     fun deleteMeal(mealId: Long) {

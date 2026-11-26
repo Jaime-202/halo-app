@@ -51,7 +51,9 @@ data class FoodCatalogItem(
     val isGeneric: Boolean = false,
     val fiberPer100g: Float = 0f,
     val sugarPer100g: Float = 0f,
-    val saltPer100g: Float = 0f
+    val saltPer100g: Float = 0f,
+    val nutriScore: String? = null,   // "a".."e" (Open Food Facts)
+    val novaGroup: Int? = null        // 1..4: grado de procesado
 )
 
 @Singleton
@@ -590,7 +592,8 @@ class FoodCatalogService @Inject constructor(
      */
     suspend fun searchFoods(
         query: String,
-        category: FoodSourceCategory = FoodSourceCategory.TODOS
+        category: FoodSourceCategory = FoodSourceCategory.TODOS,
+        includeRemote: Boolean = true
     ): List<FoodCatalogItem> = withContext(Dispatchers.IO) {
         val trimmed = query.trim()
         val allFoods = builtInFoods + loadAssetFoods()
@@ -634,8 +637,8 @@ class FoodCatalogService @Inject constructor(
             }
         }
 
-        // Si tenemos suficientes resultados locales relevantes (al menos 12), devolverlos
-        if (localMatches.size >= 12) {
+        // Si tenemos suficientes resultados locales relevantes (al menos 12), o solo se piden los locales, devolverlos
+        if (localMatches.size >= 12 || !includeRemote) {
             return@withContext localMatches.map { item ->
                 item.copy(imageUrl = RealFoodImageResolver.resolve(item.name, item.brand, item.imageUrl))
             }
@@ -796,7 +799,7 @@ class FoodCatalogService @Inject constructor(
         val encodedQuery = URLEncoder.encode(query, "UTF-8")
         val base = "https://es.openfoodfacts.org/cgi/search.pl?action=process&json=1"
         val spain = "&tagtype_1=countries&tag_contains_1=contains&tag_1=spain"
-        val fields = "&fields=code,product_name,product_name_es,brands,nutriments,serving_size,image_front_small_url,image_small_url"
+        val fields = "&fields=code,product_name,product_name_es,brands,nutriments,serving_size,image_front_small_url,image_small_url,nutriscore_grade,nova_group"
 
         if (tag.isNotBlank()) {
             endpoints.add("$base&search_terms=$encodedQuery&tagtype_0=$tagType&tag_contains_0=contains&tag_0=${URLEncoder.encode(tag, "UTF-8")}&page_size=40$fields")
@@ -924,7 +927,9 @@ class FoodCatalogService @Inject constructor(
             isGeneric = false,
             fiberPer100g = fiber,
             sugarPer100g = sugar,
-            saltPer100g = salt
+            saltPer100g = salt,
+            nutriScore = p.optString("nutriscore_grade").lowercase().takeIf { it in setOf("a", "b", "c", "d", "e") },
+            novaGroup = p.optInt("nova_group", 0).takeIf { it in 1..4 }
         )
     }
 
