@@ -45,6 +45,9 @@ data class CalculatedIntake(
     val tdee: Float = 0f
 )
 
+/** Aviso que se puede deshacer; `id` distingue avisos con el mismo texto. */
+data class UndoInfo(val message: String, val id: Long = System.nanoTime())
+
 /** Resumen de un día para la vista semanal de Comida. */
 data class NutritionDay(val date: LocalDate, val kcal: Float, val protein: Float)
 
@@ -126,7 +129,9 @@ data class NutritionUiState(
     val recentEntries: List<MealEntryEntity> = emptyList(),
     val waterMl: Int = 0,
     val waterTargetMl: Int = 2500,
-    val weekDays: List<NutritionDay> = emptyList()
+    val weekDays: List<NutritionDay> = emptyList(),
+    /** Aviso con "Deshacer" tras borrar, duplicar o copiar. */
+    val undo: UndoInfo? = null
 ) {
     /** Lo que sueles comer en ese momento del día, por frecuencia (máx. 6). */
     fun suggestionsFor(mealType: String): List<FoodCatalogItem> = recentEntries
@@ -521,13 +526,30 @@ class NutritionViewModel @Inject constructor(
                 return@launch
             }
             val now = System.currentTimeMillis()
-            repository.insertMeals(source.map { it.copy(id = 0, dateMillis = targetMillis, createdAt = now) })
-            _uiState.update { it.copy(libraryMessage = "${source.size} alimentos copiados de ayer") }
+            val ids = repository.insertMeals(source.map { it.copy(id = 0, dateMillis = targetMillis, createdAt = now) })
+            offerUndo("${source.size} alimentos copiados de ayer") { ids.forEach { repository.deleteMeal(it) } }
         }
     }
 
     private suspend fun foodLibraryDaoMealsBetween(start: Long, end: Long) =
         repository.mealsBetween(start, end)
+
+    private var undoAction: (suspend () -> Unit)? = null
+
+    private fun offerUndo(message: String, action: suspend () -> Unit) {
+        undoAction = action
+        _uiState.update { it.copy(undo = UndoInfo(message)) }
+    }
+
+    /** Deshace la última acción (borrar, duplicar, copiar o repetir). */
+    fun undo() {
+        val action = undoAction ?: return
+        undoAction = null
+        viewModelScope.launch(Dispatchers.IO) { action() }
+        _uiState.update { it.copy(undo = null) }
+    }
+
+    fun consumeUndo() = _uiState.update { it.copy(undo = null) }
 
     fun consumeLibraryMessage() = _uiState.update { it.copy(libraryMessage = null) }
 
@@ -623,7 +645,8 @@ class NutritionViewModel @Inject constructor(
 
     fun duplicateMeal(meal: MealEntryEntity) {
         viewModelScope.launch(Dispatchers.IO) {
-            repository.insertMeal(meal.copy(id = 0, createdAt = System.currentTimeMillis()))
+            val id = repository.insertMeal(meal.copy(id = 0, createdAt = System.currentTimeMillis()))
+            offerUndo("${meal.name} duplicado") { repository.deleteMeal(id) }
         }
     }
 
@@ -641,8 +664,8 @@ class NutritionViewModel @Inject constructor(
             }
             val day = target.atStartOfDay(zone).toInstant().toEpochMilli()
             val now = System.currentTimeMillis()
-            repository.insertMeals(src.map { it.copy(id = 0, dateMillis = day, createdAt = now) })
-            _uiState.update { it.copy(libraryMessage = "${MealSectionType.labelFor(mealType)} de ayer repetido") }
+            val ids = repository.insertMeals(src.map { it.copy(id = 0, dateMillis = day, createdAt = now) })
+            offerUndo("${MealSectionType.labelFor(mealType)} de ayer repetido") { ids.forEach { repository.deleteMeal(it) } }
         }
     }
 
@@ -689,8 +712,10 @@ class NutritionViewModel @Inject constructor(
     }
 
     fun deleteMeal(mealId: Long) {
+        val removed = _uiState.value.meals.firstOrNull { it.id == mealId }
         viewModelScope.launch(Dispatchers.IO) {
             repository.deleteMeal(mealId)
+            if (removed != null) offerUndo("${removed.name} borrado") { repository.insertMeal(removed) }
             delay(200)
             requestNutritionAdvice()
         }

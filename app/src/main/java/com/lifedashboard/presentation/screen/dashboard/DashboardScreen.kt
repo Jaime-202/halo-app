@@ -11,6 +11,7 @@ import androidx.compose.material.icons.automirrored.filled.DirectionsRun
 import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -49,7 +50,7 @@ fun DashboardScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var showAddWeightModal by remember { mutableStateOf(false) }
     var showEditMetrics by remember { mutableStateOf(false) }
-    val haptics = androidx.compose.ui.platform.LocalHapticFeedback.current
+    val haptics = rememberHaloHaptics()
     val context = androidx.compose.ui.platform.LocalContext.current
 
     DashboardContent(
@@ -57,7 +58,7 @@ fun DashboardScreen(
         onSelectDate          = { viewModel.selectDate(it) },
         onAddWeightClick      = { showAddWeightModal = true },
         onToggleReminder      = { id, completed ->
-            if (completed) haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+            if (completed) haptics.confirm() else haptics.tick()
             viewModel.toggleReminder(id, completed)
         },
         onNavigateToHealth    = onNavigateToHealth,
@@ -65,8 +66,10 @@ fun DashboardScreen(
         onNavigateToNutrition = onNavigateToNutrition,
         onNavigateToSettings  = onNavigateToSettings,
         onEditMetrics         = { showEditMetrics = true },
+        isRefreshing          = state.isRefreshing,
+        onRefresh             = { viewModel.refresh() },
         onSaveMood            = { m, e ->
-            haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+            haptics.confirm()
             viewModel.saveMood(m, e)
         },
         onAddWater            = {
@@ -111,7 +114,9 @@ fun DashboardContent(
     onNavigateToSettings: () -> Unit = {},
     onEditMetrics: () -> Unit = {},
     onAddWater: () -> Unit = {},
-    onSaveMood: (Int, Int) -> Unit = { _, _ -> }
+    onSaveMood: (Int, Int) -> Unit = { _, _ -> },
+    isRefreshing: Boolean = false,
+    onRefresh: () -> Unit = {}
 ) {
     val scrollState = rememberScrollState()
     val greeting = remember(state.userName) {
@@ -124,16 +129,14 @@ fun DashboardContent(
         "$timeGreeting, ${state.userName}"
     }
 
-    Box(
+    // Tirar hacia abajo para sincronizar con Health Connect
+    @OptIn(ExperimentalMaterial3Api::class)
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = onRefresh,
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(GradientStart, GradientEnd),
-                    startY = 0f,
-                    endY   = 1400f
-                )
-            )
+            .background(Obsidian)
     ) {
         Column(
             modifier = Modifier
@@ -148,10 +151,15 @@ fun DashboardContent(
             HaloTodayHeader(userName = state.userName, onProfile = onNavigateToSettings)
 
             // 1–2. Halo Score + recuperación, balance y comido frente a gastado
-            HaloHeroCard(state = state, n = numbers, onClick = onNavigateToNutrition)
+            if (state.isDataLoading) {
+                com.lifedashboard.presentation.common.components.SkeletonBlock(250.dp, radius = 26.dp)
+                com.lifedashboard.presentation.common.components.SkeletonBlock(170.dp)
+            } else {
+                HaloHeroCard(state = state, n = numbers, onClick = onNavigateToNutrition)
+            }
 
             // 3. Cuatro métricas elegidas por ti
-            MetricTilesGrid(
+            if (!state.isDataLoading) MetricTilesGrid(
                 state = state,
                 onEdit = onEditMetrics,
                 onTile = { metric ->

@@ -3,6 +3,9 @@ package com.lifedashboard.presentation.navigation
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
+import com.lifedashboard.presentation.theme.HaloMotion
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -18,11 +21,18 @@ fun NavGraph(navController: NavHostController) {
     NavHost(
         navController    = navController,
         startDestination = Screen.Dashboard.route,
+        // "Fade-through": la pantalla anterior se desvanece y la nueva aparece con un ligero zoom
         enterTransition  = {
-            fadeIn(tween(200)) + slideInHorizontally(tween(200)) { it / 6 }
+            fadeIn(tween(HaloMotion.MEDIUM, delayMillis = 60, easing = HaloMotion.EmphasizedDecelerate)) +
+                scaleIn(tween(HaloMotion.MEDIUM, delayMillis = 60, easing = HaloMotion.EmphasizedDecelerate), initialScale = 0.96f)
         },
-        exitTransition   = {
-            fadeOut(tween(150))
+        exitTransition   = { fadeOut(tween(HaloMotion.FAST, easing = HaloMotion.EmphasizedAccelerate)) },
+        popEnterTransition = {
+            fadeIn(tween(HaloMotion.MEDIUM, delayMillis = 60, easing = HaloMotion.EmphasizedDecelerate)) +
+                scaleIn(tween(HaloMotion.MEDIUM, delayMillis = 60), initialScale = 1.03f)
+        },
+        popExitTransition = {
+            fadeOut(tween(HaloMotion.FAST)) + scaleOut(tween(HaloMotion.FAST), targetScale = 0.96f)
         }
     ) {
         composable(Screen.Dashboard.route) {

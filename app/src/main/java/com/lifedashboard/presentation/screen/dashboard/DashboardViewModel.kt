@@ -82,6 +82,7 @@ data class DashboardUiState(
     val hrvMs: Float = 0f,
     val hrvBaseline: Float? = null,
     val homeMetrics: List<String> = listOf("PASOS", "SUENO", "PROTEINA", "AGUA"),
+    val isRefreshing: Boolean = false,
     val todayMood: Int? = null,
     val todayEnergy: Int? = null
 )
@@ -97,7 +98,8 @@ class DashboardViewModel @Inject constructor(
     private val userPreferences: UserPreferencesRepository,
     private val energyTargets: com.lifedashboard.data.repository.EnergyTargetsManager,
     private val waterIntakeDao: com.lifedashboard.data.local.dao.WaterIntakeDao,
-    private val moodDao: com.lifedashboard.data.local.dao.MoodDao
+    private val moodDao: com.lifedashboard.data.local.dao.MoodDao,
+    private val scheduler: com.lifedashboard.core.worker.WorkManagerScheduler
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DashboardUiState())
@@ -359,6 +361,16 @@ class DashboardViewModel @Inject constructor(
                     amountMl = ml
                 )
             )
+        }
+    }
+
+    /** Sincroniza Health Connect ahora (tirar hacia abajo en Hoy). */
+    fun refresh() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isRefreshing = true) }
+            scheduler.runHealthSyncNow()
+            kotlinx.coroutines.delay(1_500)
+            _uiState.update { it.copy(isRefreshing = false) }
         }
     }
 

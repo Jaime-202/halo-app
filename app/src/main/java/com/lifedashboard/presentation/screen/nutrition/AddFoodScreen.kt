@@ -70,12 +70,14 @@ internal fun AddFoodScreen(
     var detail by remember { mutableStateOf<FoodCatalogItem?>(null) }
     var showBasket by remember { mutableStateOf(false) }
     val focus = remember { FocusRequester() }
+    val haptics = rememberHaloHaptics()
     LaunchedEffect(Unit) { onQuery(""); try { focus.requestFocus() } catch (_: Exception) { } }
 
     fun key(f: FoodCatalogItem) = NutritionViewModel.foodKey(f.name, f.brand)
     fun inBasket(f: FoodCatalogItem) = basket.any { key(it.food) == key(f) }
     fun toggle(f: FoodCatalogItem) {
         val i = basket.indexOfFirst { key(it.food) == key(f) }
+        haptics.tick()
         if (i >= 0) basket.removeAt(i) else basket.add(BasketItem(f, f.servingSizeGrams.takeIf { it > 0f } ?: 100f))
     }
 
@@ -152,6 +154,9 @@ internal fun AddFoodScreen(
                         }
                     } else {
                         if (searching && state.isSearching) item { LinearProgressIndicator(color = Ion, trackColor = Line, modifier = Modifier.fillMaxWidth()) }
+                        if (searching && state.isSearching && list.isEmpty()) items(5) {
+                            com.lifedashboard.presentation.common.components.SkeletonBlock(64.dp, radius = 18.dp)
+                        }
                         if (!state.isSearching && list.isEmpty() && !(tab == AddTab.PARA_TI && !searching && (state.favorites.isNotEmpty() || state.recents.isNotEmpty()))) item {
                             Empty(
                                 when {
@@ -204,7 +209,7 @@ internal fun AddFoodScreen(
                                     Text("${basket.sumOf { it.kcal.toDouble() }.roundToInt()} kcal · ${if (showBasket) "ocultar" else "ver"}", color = TextMute, style = MaterialTheme.typography.labelSmall)
                                 }
                                 Button(
-                                    onClick = { onAddBasket(basket.toList(), mealType); onDismiss() },
+                                    onClick = { haptics.confirm(); onAddBasket(basket.toList(), mealType); onDismiss() },
                                     colors = ButtonDefaults.buttonColors(containerColor = Ion, contentColor = OnAccent), shape = RoundedCornerShape(14.dp),
                                 ) { Text("Añadir") }
                             }

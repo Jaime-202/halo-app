@@ -391,6 +391,15 @@ fun NutritionScreen(
         )
     }
 
+    // Aviso con "Deshacer"
+    val snackbar = remember { SnackbarHostState() }
+    LaunchedEffect(state.undo?.id) {
+        val info = state.undo ?: return@LaunchedEffect
+        val result = snackbar.showSnackbar(info.message, actionLabel = "Deshacer", duration = SnackbarDuration.Short)
+        if (result == SnackbarResult.ActionPerformed) viewModel.undo() else viewModel.consumeUndo()
+    }
+
+    Box(Modifier.fillMaxSize()) {
     NutritionHome(
         state = state,
         a = NutritionHomeActions(
@@ -412,6 +421,19 @@ fun NutritionScreen(
             gemini = { showApiKeyModal = true },
         )
     )
+    SnackbarHost(
+        snackbar,
+        modifier = Modifier.align(Alignment.BottomCenter).padding(start = 16.dp, end = 16.dp, bottom = 176.dp),
+    ) { data ->
+        Snackbar(
+            data,
+            containerColor = PanelHigh,
+            contentColor = TextHigh,
+            actionColor = Ion,
+            shape = RoundedCornerShape(16.dp),
+        )
+    }
+    }
 }
 
 // ─── Header con selector de fecha y estado de IA ─────────────────────────────

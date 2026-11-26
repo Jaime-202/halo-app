@@ -18,6 +18,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
@@ -89,7 +90,10 @@ internal fun FoodDetailSheet(
             Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            Box(Modifier.fillMaxWidth().height(150.dp).clip(RoundedCornerShape(22.dp))) {
+            // La foto aparece creciendo, como si saliera de la fila del alimento
+            val grow = remember { androidx.compose.animation.core.Animatable(0.9f) }
+            LaunchedEffect(Unit) { grow.animateTo(1f, HaloMotion.bouncy()) }
+            Box(Modifier.fillMaxWidth().height(150.dp).graphicsLayer { scaleX = grow.value; scaleY = grow.value }.clip(RoundedCornerShape(22.dp))) {
                 FoodThumbnail(name = food.name, brand = food.brand, imageUrl = food.imageUrl, size = 400.dp, modifier = Modifier.fillMaxSize())
                 IconButton(
                     onClick = onToggleFavorite,

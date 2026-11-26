@@ -45,7 +45,7 @@ fun OrbitNavBar(
     onAction: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val haptics = LocalHapticFeedback.current
+    val haptics = rememberHaloHaptics()
 
     Row(
         modifier = modifier
@@ -74,7 +74,7 @@ fun OrbitNavBar(
                     item = item,
                     selected = selected,
                     onClick = {
-                        if (!selected) haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        if (!selected) haptics.tick()
                         onNavigate(item.screen)
                     },
                 )
@@ -88,7 +88,7 @@ fun OrbitNavBar(
                 .clip(CircleShape)
                 .background(Ion)
                 .clickable(role = Role.Button, onClickLabel = "Registrar") {
-                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    haptics.confirm()
                     onAction()
                 },
             contentAlignment = Alignment.Center,

@@ -36,9 +36,10 @@ class NutritionRepository @Inject constructor(
         return id
     }
 
-    suspend fun insertMeals(meals: List<MealEntryEntity>) {
-        mealDao.insertMeals(meals)
+    suspend fun insertMeals(meals: List<MealEntryEntity>): List<Long> {
+        val ids = mealDao.insertMeals(meals)
         com.lifedashboard.core.worker.WidgetUpdateWorker.updateAllWidgets(context)
+        return ids
     }
 
     suspend fun mealsBetween(startMillis: Long, endMillis: Long): List<MealEntryEntity> =

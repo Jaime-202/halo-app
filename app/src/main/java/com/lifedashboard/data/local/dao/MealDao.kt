@@ -11,7 +11,7 @@ interface MealDao {
     suspend fun insertMeal(meal: MealEntryEntity): Long
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertMeals(meals: List<MealEntryEntity>)
+    suspend fun insertMeals(meals: List<MealEntryEntity>): List<Long>
 
     @Update
     suspend fun updateMeal(meal: MealEntryEntity)

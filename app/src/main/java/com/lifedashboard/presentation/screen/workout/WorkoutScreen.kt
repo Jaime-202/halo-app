@@ -17,6 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.FileUpload
 import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -185,6 +186,8 @@ fun WorkoutScreen(
         message?.let { Toast.makeText(context, it, Toast.LENGTH_LONG).show(); viewModel.consumeMessage() }
     }
 
+    @OptIn(ExperimentalMaterial3Api::class)
+    PullToRefreshBox(isRefreshing = state.isSyncing, onRefresh = viewModel::triggerSync, modifier = Modifier.fillMaxSize().background(Obsidian)) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -216,6 +219,7 @@ fun WorkoutScreen(
         }
 
         ImportCard(onImport = { csvLauncher.launch(arrayOf("text/csv", "text/comma-separated-values", "text/plain", "*/*")) })
+    }
     }
 }
 

@@ -32,6 +32,7 @@
     <uses-feature android:name="android.hardware.camera" android:required="false" />
 
     <application
+        android:enableOnBackInvokedCallback="true"
         android:name=".app.LifeDashboardApp"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"

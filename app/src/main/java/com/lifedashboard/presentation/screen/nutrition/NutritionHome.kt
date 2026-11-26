@@ -378,6 +378,7 @@ private fun WeekCard(state: NutritionUiState) {
 
 @Composable
 private fun WaterRow(state: NutritionUiState, onAdd: () -> Unit) {
+    val haptics = rememberHaloHaptics()
     val glasses = (state.waterTargetMl / 250).coerceIn(4, 12)
     val filled = state.waterMl / 250
     val shape = RoundedCornerShape(20.dp)
@@ -396,7 +397,7 @@ private fun WaterRow(state: NutritionUiState, onAdd: () -> Unit) {
                     if (on) Icons.Filled.WaterDrop else Icons.Outlined.WaterDrop,
                     contentDescription = if (i == filled) "Añadir un vaso de agua" else null,
                     tint = if (on) Flux else LineStrong,
-                    modifier = Modifier.size(22.dp).clip(CircleShape).clickable(enabled = i >= filled, onClick = onAdd),
+                    modifier = Modifier.size(22.dp).clip(CircleShape).clickable(enabled = i >= filled) { haptics.tick(); onAdd() },
                 )
             }
         }
@@ -407,13 +408,14 @@ private fun WaterRow(state: NutritionUiState, onAdd: () -> Unit) {
 
 @Composable
 private fun SuggestedNow(type: String, foods: List<FoodCatalogItem>, onAdd: (FoodCatalogItem) -> Unit, onRepeat: () -> Unit) {
+    val haptics = rememberHaloHaptics()
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("SUGERIDO AHORA · ${MealSectionType.labelFor(type).uppercase()}", color = TextMute, style = mono11)
         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             foods.forEach { f ->
                 val s = RoundedCornerShape(50)
                 Row(
-                    Modifier.clip(s).background(PanelHigh).border(1.dp, Ion.copy(alpha = 0.4f), s).clickable { onAdd(f) }
+                    Modifier.clip(s).background(PanelHigh).border(1.dp, Ion.copy(alpha = 0.4f), s).clickable { haptics.confirm(); onAdd(f) }
                         .semantics { contentDescription = "Añadir ${f.name}" }
                         .padding(start = 4.dp, end = 12.dp, top = 4.dp, bottom = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -488,12 +490,12 @@ private fun MomentHeader(type: String, meals: List<MealEntryEntity>, onAdd: () -
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SwipeMealRow(meal: MealEntryEntity, onClick: () -> Unit, onDelete: () -> Unit, onDuplicate: () -> Unit) {
-    val haptics = LocalHapticFeedback.current
+    val haptics = rememberHaloHaptics()
     val state = rememberSwipeToDismissBoxState(
         confirmValueChange = { v ->
             when (v) {
-                SwipeToDismissBoxValue.EndToStart -> { haptics.performHapticFeedback(HapticFeedbackType.LongPress); onDelete(); true }
-                SwipeToDismissBoxValue.StartToEnd -> { haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove); onDuplicate(); false }
+                SwipeToDismissBoxValue.EndToStart -> { haptics.reject(); onDelete(); true }
+                SwipeToDismissBoxValue.StartToEnd -> { haptics.confirm(); onDuplicate(); false }
                 else -> false
             }
         },
