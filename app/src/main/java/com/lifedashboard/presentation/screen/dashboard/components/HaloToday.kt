@@ -280,7 +280,7 @@ private fun tileData(metric: HomeMetric, s: DashboardUiState): TileData = when (
     HomeMetric.PASOS -> TileData("%,d".format(Locale("es", "ES"), s.todaySteps), "", s.stepsProgress, Ion)
     HomeMetric.SUENO -> {
         val h = s.todaySleepHours.toInt(); val m = ((s.todaySleepHours - h) * 60).safeRound()
-        TileData(if (s.todaySleepHours > 0f) "${h}h ${m}" else "—", "", s.sleepProgress, Flux)
+        TileData(if (s.todaySleepHours > 0f) "${h}h %02d".format(m) else "—", "", s.sleepProgress, Flux)
     }
     HomeMetric.PROTEINA -> TileData(s.todayProteinG.safeRound().toString(), "g", if (s.proteinTargetG > 0f) (s.todayProteinG / s.proteinTargetG).coerceIn(0f, 1f) else null, Ion)
     HomeMetric.AGUA -> TileData("%.1f".format(Locale("es", "ES"), s.todayWaterMl / 1000f), "L", if (s.waterTargetMl > 0) (s.todayWaterMl.toFloat() / s.waterTargetMl).coerceIn(0f, 1f) else null, Flux)

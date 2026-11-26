@@ -195,7 +195,7 @@ class LifeDashboardWidget : GlanceAppWidget() {
                     Spacer(GlanceModifier.height(6.dp))
                     MetricLine("Pasos", "%,d".format(es, data.steps), data.stepsProgress)
                     MetricLine("Sueño", if (data.sleepHours > 0f) "%.1f h".format(es, data.sleepHours) else "—", null)
-                    MetricLine("Agua", "%.1f L".format(es, data.waterMl / 1000f), if (data.waterTargetMl > 0) data.waterMl.toFloat() / data.waterTargetMl else null)
+                    MetricLine("Agua", "%.1f L".format(es, data.waterMl / 1000f), if (data.waterTargetMl > 0) data.waterMl.toFloat() / data.waterTargetMl else null, waterButton = true)
                     if (data.proteinTargetG > 0) MetricLine("Proteína", "${data.proteinG} g", data.proteinG.toFloat() / data.proteinTargetG)
                 }
             }
@@ -204,11 +204,20 @@ class LifeDashboardWidget : GlanceAppWidget() {
 }
 
 @Composable
-private fun MetricLine(label: String, value: String, progress: Float?) {
+private fun MetricLine(label: String, value: String, progress: Float?, waterButton: Boolean = false) {
     Column(GlanceModifier.fillMaxWidth().padding(vertical = 2.dp)) {
-        Row(GlanceModifier.fillMaxWidth()) {
+        Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(label, style = TextStyle(color = cp(TextMute), fontSize = 11.sp), modifier = GlanceModifier.defaultWeight())
             Text(value, style = TextStyle(color = cp(TextHigh), fontSize = 11.sp, fontFamily = FontFamily.Monospace))
+            if (waterButton) {
+                Spacer(GlanceModifier.width(6.dp))
+                Text(
+                    "+250",
+                    style = TextStyle(color = cp(Obsidian), fontSize = 10.sp, fontWeight = FontWeight.Medium),
+                    modifier = GlanceModifier.background(cp(Ion)).cornerRadius(10.dp).padding(horizontal = 7.dp, vertical = 2.dp)
+                        .clickable(androidx.glance.appwidget.action.actionRunCallback<AddWaterAction>()),
+                )
+            }
         }
         if (progress != null) {
             LinearProgressIndicator(
@@ -218,5 +227,23 @@ private fun MetricLine(label: String, value: String, progress: Float?) {
                 backgroundColor = cp(Line),
             )
         }
+    }
+}
+
+/** Botón "+250" del widget: suma un vaso de agua sin abrir la app. */
+class AddWaterAction : androidx.glance.appwidget.action.ActionCallback {
+    override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: androidx.glance.action.ActionParameters) {
+        val ep = EntryPointAccessors.fromApplication(context.applicationContext, WidgetEntryPoint::class.java)
+        withContext(Dispatchers.IO) {
+            ep.waterIntakeDao().insert(
+                com.lifedashboard.data.local.entity.WaterIntakeEntity(
+                    dateMillis = LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli(),
+                    timestampMillis = System.currentTimeMillis(),
+                    amountMl = 250,
+                )
+            )
+        }
+        LifeDashboardWidget().updateAll(context)
+        LifeDashboard2x2Widget().updateAll(context)
     }
 }

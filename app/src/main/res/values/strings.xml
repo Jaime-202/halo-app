@@ -9,4 +9,11 @@
 
     <string name="widget_expanded_name">Halo · Hoy</string>
     <string name="widget_expanded_description">Halo Score, balance, pasos, sueño, agua y proteína</string>
+    <string name="shortcut_food_short">Añadir comida</string>
+    <string name="shortcut_food_long">Añadir comida</string>
+    <string name="shortcut_water_short">Agua</string>
+    <string name="shortcut_water_long">Añadir 250 ml de agua</string>
+    <string name="shortcut_weight_short">Pesarme</string>
+    <string name="shortcut_weight_long">Registrar peso</string>
+    <string name="water_added">+250 ml de agua</string>
 </resources>

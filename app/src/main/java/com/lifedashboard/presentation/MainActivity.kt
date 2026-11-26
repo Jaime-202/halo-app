@@ -56,6 +56,7 @@ class MainActivity : ComponentActivity() {
             window.decorView.post { reportFullyDrawn() }
         }
         enableEdgeToEdge()
+        handleShortcut(intent)
 
         // Iniciar workers en background
         workManagerScheduler.scheduleAll()
@@ -91,6 +92,18 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        handleShortcut(intent)
+    }
+
+    /** Accesos directos del icono (mantener pulsado): se atienden cuando la app está lista. */
+    private fun handleShortcut(intent: android.content.Intent?) {
+        val id = intent?.getStringExtra("halo.shortcut") ?: return
+        intent.removeExtra("halo.shortcut")
+        ShortcutBus.pending.value = id
+    }
+
     override fun onResume() {
         super.onResume()
         lifecycleScope.launch(Dispatchers.IO) {
@@ -98,6 +111,9 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
+
+/** Atajo pendiente ("add_food", "water", "weight"). */
+object ShortcutBus { val pending = kotlinx.coroutines.flow.MutableStateFlow<String?>(null) }
 
 @Composable
 private fun LifeDashboardApp() {
@@ -128,6 +144,25 @@ private fun LifeDashboardApp() {
     var weightDialogKg by remember { mutableStateOf<Float?>(null) }
     var showMoodDialog by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+
+    val shortcut by ShortcutBus.pending.collectAsState()
+    LaunchedEffect(shortcut) {
+        when (shortcut) {
+            "add_food" -> {
+                com.lifedashboard.presentation.quicklog.QuickActionBus.request(com.lifedashboard.presentation.quicklog.NutritionAction.SEARCH)
+                navController.navigate(Screen.Nutrition.route) {
+                    popUpTo(Screen.Dashboard.route) { saveState = true }
+                    launchSingleTop = true
+                }
+            }
+            "water" -> {
+                quickLog.addWater(250)
+                android.widget.Toast.makeText(context, context.getString(com.lifedashboard.R.string.water_added), android.widget.Toast.LENGTH_SHORT).show()
+            }
+            "weight" -> weightDialogKg = quickLog.currentWeight()
+        }
+        if (shortcut != null) ShortcutBus.pending.value = null
+    }
 
     if (showQuickLog) {
         com.lifedashboard.presentation.quicklog.QuickLogSheet(

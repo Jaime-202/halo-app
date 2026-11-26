@@ -4,6 +4,7 @@ import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.graphics.Bitmap
 import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
@@ -134,6 +135,11 @@ class ScreenshotTour {
             compose.onNodeWithText("Semana").performClick(); shot("05-calendario-semana")
             compose.onNodeWithContentDescription("Actividad").performClick(); shot("06-actividad")
             compose.onNodeWithContentDescription("Hoy").performClick()
+            waitFor("BALANCE HOY")
+            compose.onAllNodes(hasText("PASOS")).onFirst().performClick()
+            waitFor("DESDE HEALTH CONNECT"); shot("10-salud")
+            compose.onNodeWithText("Sueño").performClick(); shot("11-salud-sueno")
+            it.onActivity { a -> a.onBackPressedDispatcher.onBackPressed() }
             waitFor("BALANCE HOY")
             compose.onNodeWithContentDescription("Perfil y ajustes").performClick(); shot("07-ajustes")
             compose.onNodeWithText("Mis recordatorios").performClick(); shot("08-ajustes-recordatorios")
