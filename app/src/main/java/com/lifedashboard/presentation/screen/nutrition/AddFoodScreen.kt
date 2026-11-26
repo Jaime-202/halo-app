@@ -63,12 +63,13 @@ internal fun AddFoodScreen(
     onLabel: () -> Unit,
     onDescribe: (String) -> Unit,
     onDismiss: () -> Unit,
+    initialBasket: List<BasketItem> = emptyList(),
 ) {
     var mealType by remember { mutableStateOf(initialMealType) }
     var tab by remember { mutableStateOf(AddTab.PARA_TI) }
-    val basket = remember { mutableStateListOf<BasketItem>() }
+    val basket = remember { mutableStateListOf<BasketItem>().apply { addAll(initialBasket) } }
     var detail by remember { mutableStateOf<FoodCatalogItem?>(null) }
-    var showBasket by remember { mutableStateOf(false) }
+    var showBasket by remember { mutableStateOf(initialBasket.isNotEmpty()) }
     val focus = remember { FocusRequester() }
     val haptics = rememberHaloHaptics()
     LaunchedEffect(Unit) { onQuery(""); try { focus.requestFocus() } catch (_: Exception) { } }

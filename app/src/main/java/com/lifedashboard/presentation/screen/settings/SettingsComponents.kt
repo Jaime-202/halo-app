@@ -91,16 +91,17 @@ internal fun OptionChip(label: String, isSelected: Boolean, modifier: Modifier, 
     Box(
         contentAlignment = Alignment.Center,
         modifier = modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(if (isSelected) Violet400 else MaterialTheme.colorScheme.surfaceVariant)
+            .clip(RoundedCornerShape(50))
+            .background(if (isSelected) Ion else Color.Transparent)
+            .border(1.dp, if (isSelected) Ion else LineStrong, RoundedCornerShape(50))
             .clickable(onClick = onClick)
-            .padding(vertical = 7.dp)
+            .padding(vertical = 8.dp)
     ) {
         Text(
             text       = label,
-            style      = MaterialTheme.typography.labelSmall,
-            color      = if (isSelected) Indigo900 else White,
-            fontWeight = FontWeight.Bold
+            style      = MaterialTheme.typography.labelMedium,
+            color      = if (isSelected) OnAccent else TextHigh,
+            maxLines   = 1
         )
     }
 }
@@ -110,23 +111,22 @@ internal fun ThemeOptionChip(label: String, icon: ImageVector, isSelected: Boole
     Box(
         contentAlignment = Alignment.Center,
         modifier = modifier
-            .clip(RoundedCornerShape(12.dp))
-            .background(if (isSelected) Violet400 else MaterialTheme.colorScheme.surfaceVariant)
+            .clip(RoundedCornerShape(16.dp))
+            .background(if (isSelected) Ion else PanelHigh)
+            .border(1.dp, if (isSelected) Ion else Line, RoundedCornerShape(16.dp))
             .clickable(onClick = onClick)
-            .padding(vertical = 10.dp, horizontal = 4.dp)
+            .padding(vertical = 12.dp, horizontal = 4.dp)
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Icon(icon, contentDescription = null, tint = if (isSelected) Indigo900 else White, modifier = Modifier.size(18.dp))
+            Icon(icon, contentDescription = null, tint = if (isSelected) OnAccent else Ion, modifier = Modifier.size(20.dp))
             Spacer(Modifier.height(4.dp))
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelSmall,
-                color = if (isSelected) Indigo900 else White,
-                fontWeight = FontWeight.Bold,
-                fontSize = 11.5.sp,
+                color = if (isSelected) OnAccent else TextHigh,
                 maxLines = 1
             )
         }
@@ -138,21 +138,23 @@ internal fun SwitchSettingItem(title: String, subtitle: String, checked: Boolean
     Row(
         verticalAlignment     = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
-        modifier              = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)
+        modifier              = Modifier.fillMaxWidth().clickable { onCheckedChange(!checked) }.padding(horizontal = 16.dp, vertical = 14.dp)
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.labelLarge, color = White)
-            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = Gray500)
+            Text(title, style = MaterialTheme.typography.bodyLarge, color = TextHigh)
+            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = TextMute)
         }
         Spacer(Modifier.width(12.dp))
         Switch(
             checked         = checked,
             onCheckedChange = onCheckedChange,
             colors = SwitchDefaults.colors(
-                checkedThumbColor   = Indigo900,
-                checkedTrackColor   = Violet400,
-                uncheckedThumbColor = Gray400,
-                uncheckedTrackColor = Indigo700
+                checkedThumbColor   = OnAccent,
+                checkedTrackColor   = Ion,
+                checkedBorderColor  = Ion,
+                uncheckedThumbColor = TextMute,
+                uncheckedTrackColor = Panel,
+                uncheckedBorderColor = LineStrong
             )
         )
     }
@@ -162,7 +164,11 @@ internal fun SwitchSettingItem(title: String, subtitle: String, checked: Boolean
 internal fun SectionHeader(title: String) {
     // Dentro de un apartado de Ajustes el título ya está en la barra superior
     if (LocalInsidePage.current) return
-    Text(text = title, style = MaterialTheme.typography.labelLarge, color = Gray500)
+    Text(
+        text = title.uppercase(), color = TextMute,
+        style = androidx.compose.ui.text.TextStyle(fontFamily = MonoFamily, fontSize = 11.sp, letterSpacing = 1.2.sp),
+        modifier = Modifier.padding(start = 4.dp, top = 4.dp)
+    )
 }
 
 @Composable
@@ -170,9 +176,9 @@ internal fun SettingsCard(content: @Composable ColumnScope.() -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
-            .background(MaterialTheme.colorScheme.surface)
-            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(20.dp)),
+            .clip(RoundedCornerShape(22.dp))
+            .background(Panel)
+            .border(1.dp, Line, RoundedCornerShape(22.dp)),
         content  = content
     )
 }
@@ -181,18 +187,18 @@ internal fun SettingsCard(content: @Composable ColumnScope.() -> Unit) {
 internal fun SettingsItem(icon: ImageVector, iconColor: Color, title: String, subtitle: String, trailing: @Composable () -> Unit) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier          = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp)
+        modifier          = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 14.dp)
     ) {
         Box(
             contentAlignment = Alignment.Center,
-            modifier = Modifier.size(38.dp).clip(RoundedCornerShape(12.dp)).background(iconColor.copy(alpha = 0.15f))
+            modifier = Modifier.size(38.dp).clip(RoundedCornerShape(12.dp)).background(iconColor.copy(alpha = 0.16f))
         ) {
-            Icon(icon, contentDescription = null, tint = iconColor, modifier = Modifier.size(18.dp))
+            Icon(icon, contentDescription = null, tint = iconColor, modifier = Modifier.size(20.dp))
         }
-        Spacer(Modifier.width(10.dp))
+        Spacer(Modifier.width(14.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(text = title, style = MaterialTheme.typography.labelLarge, color = White, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-            Text(text = subtitle, style = MaterialTheme.typography.bodySmall, color = Gray500, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+            Text(text = title, style = MaterialTheme.typography.bodyLarge, color = TextHigh, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+            Text(text = subtitle, style = MaterialTheme.typography.bodySmall, color = TextMute, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
         }
         Spacer(Modifier.width(8.dp))
         trailing()

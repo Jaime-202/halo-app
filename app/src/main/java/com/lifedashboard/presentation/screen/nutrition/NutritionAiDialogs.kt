@@ -271,7 +271,7 @@ internal fun PhotoAiDialog(
                     ) {
                         Icon(Icons.Default.Check, contentDescription = null, tint = Indigo900)
                         Spacer(Modifier.width(8.dp))
-                        Text("Añadir a $mealType", color = Indigo900, fontWeight = FontWeight.Bold)
+                        Text("Revisar en la cesta", color = Indigo900, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -649,7 +649,7 @@ internal fun TextAiMealDialog(
                         ) {
                             Icon(Icons.Default.Check, contentDescription = null, tint = Indigo900)
                             Spacer(Modifier.width(6.dp))
-                            Text("Añadir a $mealType", color = Indigo900, fontWeight = FontWeight.Bold, maxLines = 1)
+                            Text("Revisar en la cesta", color = Indigo900, fontWeight = FontWeight.Bold, maxLines = 1)
                         }
                     }
                 }

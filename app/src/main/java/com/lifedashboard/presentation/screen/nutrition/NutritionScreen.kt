@@ -147,6 +147,8 @@ fun NutritionScreen(
         }
     }
 
+    var aiBasket by remember { mutableStateOf<List<BasketItem>>(emptyList()) }
+
     // Diálogo de foto y descripción con IA
     if (state.stagedBitmap != null) {
         PhotoAiDialog(
@@ -163,7 +165,7 @@ fun NutritionScreen(
             onAnalyze = { viewModel.analyzeStagedPhoto() },
             onItemChange = { idx, item -> viewModel.updateAiResultItem(idx, item) },
             onItemDelete = { idx -> viewModel.removeAiResultItem(idx) },
-            onConfirm = { items, type -> viewModel.confirmAiItems(items, type) },
+            onConfirm = { items, type -> aiBasket = viewModel.aiItemsToBasket(items); viewModel.clearStagedPhoto(); selectedMealTypeForAdd = type; showSearchDialog = true },
             onDismiss = { viewModel.clearStagedPhoto() }
         )
     }
@@ -193,7 +195,7 @@ fun NutritionScreen(
             onAnalyze = { viewModel.analyzeTextAiMeal() },
             onItemChange = { idx, item -> viewModel.updateTextAiResultItem(idx, item) },
             onItemDelete = { idx -> viewModel.removeTextAiResultItem(idx) },
-            onConfirm = { items, type -> viewModel.confirmTextAiItems(items, type) },
+            onConfirm = { items, type -> aiBasket = viewModel.aiItemsToBasket(items); viewModel.closeTextAiDialog(); selectedMealTypeForAdd = type; showSearchDialog = true },
             onDismiss = { viewModel.closeTextAiDialog() }
         )
     }
@@ -296,7 +298,8 @@ fun NutritionScreen(
             onPhoto = { type -> showSearchDialog = false; selectedMealTypeForAdd = type; cameraLauncher.launch(null) },
             onLabel = { showSearchDialog = false; labelLauncher.launch(null) },
             onDescribe = { type -> showSearchDialog = false; selectedMealTypeForAdd = type; viewModel.openTextAiDialog(type) },
-            onDismiss = { showSearchDialog = false }
+            onDismiss = { showSearchDialog = false; aiBasket = emptyList() },
+            initialBasket = aiBasket,
         )
     }
 

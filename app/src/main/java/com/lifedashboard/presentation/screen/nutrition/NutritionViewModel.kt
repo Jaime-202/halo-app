@@ -985,6 +985,33 @@ class NutritionViewModel @Inject constructor(
         }
     }
 
+    /** Convierte lo detectado por la IA en elementos de la cesta para revisarlos antes de guardar. */
+    fun aiItemsToBasket(items: List<DetectedFoodItem>): List<BasketItem> = items.map { item ->
+        val brand = if (!item.isGeneric && item.brand.isNotBlank() && !item.brand.equals("genérico", true) && !item.brand.equals("casero", true)) item.brand else "Genérico"
+        var kcal = item.calories; var p = item.protein; var c = item.carbs; var f = item.fat
+        if (kcal <= 0f && (p > 0f || c > 0f || f > 0f)) kcal = p * 4f + c * 4f + f * 9f
+        val grams = item.grams.takeIf { it > 0f } ?: 100f
+        if (kcal <= 0f && !item.name.contains("agua", true)) {
+            val factor = grams / 100f
+            val inf = FoodCatalogService.inferMacrosIfZero(item.name, 0f, p, c, f)
+            kcal = inf.calories * factor
+            if (p <= 0f) p = inf.protein * factor
+            if (c <= 0f) c = inf.carbs * factor
+            if (f <= 0f) f = inf.fat * factor
+        }
+        val per = 100f / grams
+        BasketItem(
+            FoodCatalogItem(
+                id = "ai_${item.name.hashCode()}_${System.nanoTime()}",
+                name = item.name, brand = brand,
+                caloriesPer100g = kcal * per, proteinPer100g = p * per, carbsPer100g = c * per, fatPer100g = f * per,
+                servingSizeGrams = grams, servingDescription = "${grams.toInt()} g",
+                imageUrl = RealFoodImageResolver.resolve(item.name, brand), isGeneric = brand == "Genérico",
+            ),
+            grams,
+        )
+    }
+
     fun confirmAiItems(items: List<DetectedFoodItem>, mealType: String) {
         viewModelScope.launch(Dispatchers.IO) {
             val date = _uiState.value.selectedDate

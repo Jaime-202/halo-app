@@ -314,205 +314,64 @@ private fun DashboardWeightCard(
     weightHistory: List<WeightEntryEntity>,
     onAddWeight: () -> Unit
 ) {
-    val displayWeight = latestWeightKg ?: 75.0f
-    val imc = if (userHeightCm > 0) {
-        val hM = userHeightCm / 100f
-        displayWeight / (hM * hM)
-    } else 24.0f
+    val es = Locale("es", "ES")
+    val sorted = weightHistory.sortedBy { it.dateMillis }
+    val last = latestWeightKg
+    val monthAgo = System.currentTimeMillis() - 30L * 86_400_000L
+    val base = sorted.firstOrNull { it.dateMillis >= monthAgo }?.weightKg
+    val delta = if (last != null && base != null && sorted.size >= 2) last - base else null
+    val imc = if (last != null && userHeightCm > 0) last / ((userHeightCm / 100f) * (userHeightCm / 100f)) else null
+    val imcLabel = imc?.let { when { it < 18.5f -> "Bajo peso"; it < 25f -> "Saludable"; it < 30f -> "Sobrepeso"; else -> "Obesidad" } }
+    val shape = RoundedCornerShape(22.dp)
 
-    val imcCategory = when {
-        imc < 18.5f -> "Bajo peso" to Cyan400
-        imc < 25.0f -> "Saludable" to Emerald400
-        imc < 30.0f -> "Sobrepeso" to Amber400
-        else        -> "Obesidad" to Rose400
-    }
-
-    val deltaTextAndColor: Triple<String, Color, androidx.compose.ui.graphics.vector.ImageVector?> = if (weightHistory.size >= 2) {
-        val diff = displayWeight - weightHistory[1].weightKg
-        when {
-            diff < -0.05f -> Triple(String.format(Locale.US, "-%.1f kg", Math.abs(diff)), Emerald400, Icons.Default.ArrowDownward)
-            diff > 0.05f  -> Triple(String.format(Locale.US, "+%.1f kg", diff), Amber400, Icons.Default.ArrowUpward)
-            else          -> Triple("0.0 kg", Gray400, Icons.Default.Remove)
-        }
-    } else if (weightHistory.size == 1) {
-        Triple("1er registro", Violet300, null)
-    } else {
-        Triple("Sin registros", Gray400, null)
-    }
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(22.dp))
-            .background(
-                Brush.linearGradient(
-                    listOf(
-                        Indigo800,
-                        PanelHigh
-                    )
-                )
-            )
-            .border(1.dp, Indigo700, RoundedCornerShape(22.dp))
-            .padding(18.dp)
+    Column(
+        Modifier.fillMaxWidth().clip(shape).background(Panel).border(1.dp, Line, shape).padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            // Cabecera
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(Violet400.copy(alpha = 0.15f))
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.FitnessCenter,
-                            contentDescription = null,
-                            tint = Violet300,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                    Spacer(Modifier.width(10.dp))
-                    Column {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("PESO", color = TextMute, style = androidx.compose.ui.text.TextStyle(fontFamily = MonoFamily, fontSize = 11.sp, letterSpacing = 1.2.sp))
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Text(last?.let { "%.1f".format(es, it) } ?: "—", color = TextHigh, style = MaterialTheme.typography.headlineMedium)
+                    Text(" kg", color = TextMute, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(bottom = 5.dp))
+                    delta?.let {
+                        Spacer(Modifier.width(10.dp))
                         Text(
-                            text = "Evolución de Peso",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = White,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Text(
-                            text = "Historial y tendencia",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Gray400,
-                            fontSize = 11.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            (if (it > 0) "+" else "") + "%.1f".format(es, it) + " en 30 días",
+                            color = if (it <= 0f) Ion else TextMute, style = MaterialTheme.typography.labelMedium,
+                            modifier = Modifier.padding(bottom = 6.dp),
                         )
                     }
                 }
-
-                Spacer(Modifier.width(8.dp))
-
-                Button(
-                    onClick = onAddWeight,
-                    colors = ButtonDefaults.buttonColors(containerColor = Violet400),
-                    shape = RoundedCornerShape(12.dp),
-                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = null, tint = Indigo900, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(4.dp))
-                    Text("Pesar", color = Indigo900, fontWeight = FontWeight.Bold, fontSize = 12.sp, softWrap = false, maxLines = 1)
-                }
+                if (imc != null) Text("IMC %.1f · %s".format(es, imc, imcLabel), color = TextMute, style = MaterialTheme.typography.labelSmall)
             }
-
-            // Fila central: Peso Actual + Variación + IMC
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(Indigo900.copy(alpha = 0.55f))
-                    .border(1.dp, Indigo700.copy(alpha = 0.4f), RoundedCornerShape(16.dp))
-                    .padding(horizontal = 16.dp, vertical = 12.dp)
-            ) {
-                Column {
-                    Text(
-                        text = "ÚLTIMO PESO",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Gray400,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Spacer(Modifier.height(2.dp))
-                    Row(verticalAlignment = Alignment.Bottom) {
-                        Text(
-                            text = if (latestWeightKg != null) String.format(Locale.US, "%.1f", displayWeight) else "--",
-                            style = MaterialTheme.typography.headlineMedium,
-                            color = White,
-                            fontWeight = FontWeight.Black
-                        )
-                        Spacer(Modifier.width(4.dp))
-                        Text(
-                            text = "kg",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = Violet300,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(bottom = 3.dp)
-                        )
-                    }
+            Button(
+                onClick = onAddWeight,
+                colors = ButtonDefaults.buttonColors(containerColor = Ion, contentColor = OnAccent),
+                shape = RoundedCornerShape(14.dp),
+            ) { Text("Pesarme") }
+        }
+        // Línea de los últimos pesajes
+        val pts = sorted.takeLast(30)
+        if (pts.size >= 2) {
+            val line = Ion
+            Canvas(Modifier.fillMaxWidth().height(56.dp)) {
+                val min = pts.minOf { it.weightKg }; val max = pts.maxOf { it.weightKg }
+                val span = (max - min).coerceAtLeast(0.5f)
+                val t0 = pts.first().dateMillis.toFloat(); val t1 = pts.last().dateMillis.toFloat()
+                val dt = (t1 - t0).coerceAtLeast(1f)
+                val path = androidx.compose.ui.graphics.Path()
+                pts.forEachIndexed { i, p ->
+                    val x = (p.dateMillis - t0) / dt * size.width
+                    val y = size.height - (p.weightKg - min) / span * (size.height - 8f) - 4f
+                    if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
                 }
-
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        text = "VARIACIÓN",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Gray400,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Spacer(Modifier.height(2.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        deltaTextAndColor.third?.let { icon ->
-                            Icon(
-                                imageVector = icon,
-                                contentDescription = null,
-                                tint = deltaTextAndColor.second,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(Modifier.width(2.dp))
-                        }
-                        Text(
-                            text = deltaTextAndColor.first,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = deltaTextAndColor.second,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                    Text(
-                        text = "IMC ${String.format(Locale.US, "%.1f", imc)} · ${imcCategory.first}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = imcCategory.second,
-                        fontSize = 11.sp
-                    )
-                }
+                drawPath(path, line, style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.dp.toPx()))
+                val lp = pts.last()
+                drawCircle(line, 3.5.dp.toPx(), androidx.compose.ui.geometry.Offset(size.width, size.height - (lp.weightKg - min) / span * (size.height - 8f) - 4f))
             }
-
-            // Gráfico interactivo de evolución de peso
-            if (weightHistory.isNotEmpty()) {
-                WeightEvolutionChart(
-                    weightHistory = weightHistory,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(160.dp)
-                )
-            } else {
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(Indigo900.copy(alpha = 0.4f))
-                        .padding(vertical = 20.dp, horizontal = 16.dp)
-                ) {
-                    Text(
-                        text = "Toca en 'Pesar' para registrar tu primer peso y ver tu gráfica de evolución aquí.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Gray400,
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                    )
-                }
-            }
+        } else {
+            Text("Pésate un par de veces y aquí verás tu evolución.", color = TextMute, style = MaterialTheme.typography.bodySmall)
         }
     }
 }
