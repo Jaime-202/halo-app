@@ -4,30 +4,33 @@ import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.googlefonts.Font
-import androidx.compose.ui.text.googlefonts.GoogleFont
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.unit.sp
 import com.lifedashboard.R
 
 /**
- * Tipografía Halo (Downloadable Fonts de Google; sin conexión cae a la del sistema):
+ * Tipografía Halo, incluida en la app (sin descargas: el texto no cambia de letra al abrir
+ * y funciona sin internet). Licencia SIL Open Font License, ver FONTS-LICENSE.md.
  * - Space Grotesk: títulos y cifras grandes
  * - Inter: texto y etiquetas
- * - JetBrains Mono: datos y etiquetas técnicas (MonoFamily)
+ * - JetBrains Mono: datos y etiquetas técnicas
  */
-private val provider = GoogleFont.Provider(
-    providerAuthority = "com.google.android.gms.fonts",
-    providerPackage   = "com.google.android.gms",
-    certificates      = R.array.com_google_android_gms_fonts_certs
+val DisplayFamily = FontFamily(
+    Font(R.font.space_grotesk_regular, FontWeight.Normal),
+    Font(R.font.space_grotesk_medium, FontWeight.Medium),
+    Font(R.font.space_grotesk_semi_bold, FontWeight.SemiBold),
+    Font(R.font.space_grotesk_bold, FontWeight.Bold),
 )
-
-private fun family(name: String, vararg weights: FontWeight) = GoogleFont(name).let { gf ->
-    FontFamily(weights.map { Font(googleFont = gf, fontProvider = provider, weight = it) })
-}
-
-val DisplayFamily = family("Space Grotesk", FontWeight.Normal, FontWeight.Medium, FontWeight.SemiBold, FontWeight.Bold)
-val BodyFamily    = family("Inter", FontWeight.Normal, FontWeight.Medium, FontWeight.SemiBold, FontWeight.Bold)
-val MonoFamily    = family("JetBrains Mono", FontWeight.Normal, FontWeight.Medium)
+val BodyFamily = FontFamily(
+    Font(R.font.inter_regular, FontWeight.Normal),
+    Font(R.font.inter_medium, FontWeight.Medium),
+    Font(R.font.inter_semi_bold, FontWeight.SemiBold),
+    Font(R.font.inter_bold, FontWeight.Bold),
+)
+val MonoFamily = FontFamily(
+    Font(R.font.jet_brains_mono_regular, FontWeight.Normal),
+    Font(R.font.jet_brains_mono_medium, FontWeight.Medium),
+)
 
 val AppTypography = Typography(
     displayLarge = TextStyle(

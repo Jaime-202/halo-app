@@ -1,0 +1,6 @@
+# Perfil de arranque de Halo (Baseline Profile).
+# Android compila por adelantado el código de la app al instalarla, en lugar de hacerlo
+# la primera vez que se usa: menos tirones en el primer arranque y en el primer scroll.
+# Las librerías de Compose ya traen su propio perfil; aquí van las clases de Halo.
+HSPLcom/lifedashboard/**;->**(**)**
+Lcom/lifedashboard/**;

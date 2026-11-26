@@ -37,8 +37,28 @@ android {
     }
 
 
+    // Firma de la versión final: datos en local.properties (no se sube a GitHub).
+    //   halo.keystore=/ruta/halo-release.jks
+    //   halo.keystore.password=…   halo.key.alias=halo   halo.key.password=…
+    val localProps = Properties().apply {
+        val f = rootProject.file("local.properties")
+        if (f.exists()) f.inputStream().use { load(it) }
+    }
+    val keystorePath = localProps.getProperty("halo.keystore")
+    signingConfigs {
+        if (keystorePath != null && file(keystorePath).exists()) {
+            create("release") {
+                storeFile = file(keystorePath)
+                storePassword = localProps.getProperty("halo.keystore.password")
+                keyAlias = localProps.getProperty("halo.key.alias")
+                keyPassword = localProps.getProperty("halo.key.password")
+            }
+        }
+    }
+
     buildTypes {
         release {
+            signingConfigs.findByName("release")?.let { signingConfig = it }
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
@@ -90,7 +110,6 @@ dependencies {
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)
-    implementation("androidx.compose.ui:ui-text-google-fonts")
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     implementation(libs.androidx.material.icons.extended)
@@ -138,6 +157,8 @@ dependencies {
 
     // ─── Splash Screen ──────────────────────────────────────────────
     implementation(libs.androidx.core.splashscreen)
+    // Instala el perfil de arranque (baseline-prof.txt) también fuera de Google Play
+    implementation("androidx.profileinstaller:profileinstaller:1.4.1")
 
     // ─── Accompanist (permisos runtime) ─────────────────────────────
     implementation(libs.accompanist.permissions)

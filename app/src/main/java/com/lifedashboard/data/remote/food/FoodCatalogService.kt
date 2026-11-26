@@ -457,6 +457,10 @@ class FoodCatalogService @Inject constructor(
 
     private var assetFoods: List<FoodCatalogItem>? = null
 
+    /** Lee los catálogos (unos 2 MB) en segundo plano para que la primera búsqueda sea inmediata. */
+    suspend fun warmUp() = withContext(Dispatchers.IO) { loadAssetFoods(); Unit }
+
+    @Synchronized
     private fun loadAssetFoods(): List<FoodCatalogItem> {
         val cached = assetFoods
         if (cached != null) return cached

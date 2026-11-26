@@ -1,6 +1,7 @@
 package com.lifedashboard.presentation
 
 import android.os.Bundle
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -41,8 +42,19 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var userPreferences: com.lifedashboard.data.repository.UserPreferencesRepository
     @Inject lateinit var energyTargets: com.lifedashboard.data.repository.EnergyTargetsManager
 
+    /** La pantalla de inicio se mantiene hasta leer las preferencias (sin destello negro). */
+    @Volatile private var ready = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
+        val splash = installSplashScreen()
+        splash.setKeepOnScreenCondition { !ready }
         super.onCreate(savedInstanceState)
+        lifecycleScope.launch {
+            userPreferences.userGoals.first()
+            ready = true
+            // Avisa al sistema de que la app ya es usable (mejora las optimizaciones de arranque)
+            window.decorView.post { reportFullyDrawn() }
+        }
         enableEdgeToEdge()
 
         // Iniciar workers en background
