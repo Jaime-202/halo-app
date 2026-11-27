@@ -26,6 +26,7 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.first
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
@@ -47,7 +48,8 @@ class HealthConnectSyncWorker @AssistedInject constructor(
     @Assisted private val context: Context,
     @Assisted workerParams: WorkerParameters,
     private val healthDao: HealthDao,
-    private val workoutDao: WorkoutDao
+    private val workoutDao: WorkoutDao,
+    private val userPreferences: com.lifedashboard.data.repository.UserPreferencesRepository,
 ) : CoroutineWorker(context, workerParams) {
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
@@ -65,7 +67,7 @@ class HealthConnectSyncWorker @AssistedInject constructor(
 
             val client = HealthConnectClient.getOrCreate(context)
             workoutDao.deduplicateSessions()
-            syncLast7Days(client)
+            syncRecentDays(client)
             workoutDao.deduplicateSessions()
             updateWidget()
             Result.success()
@@ -78,11 +80,11 @@ class HealthConnectSyncWorker @AssistedInject constructor(
         }
     }
 
-    private suspend fun syncLast7Days(client: HealthConnectClient) {
+    private suspend fun syncRecentDays(client: HealthConnectClient) {
         val today = LocalDate.now()
         val results = mutableListOf<HealthDataEntity>()
 
-        for (daysAgo in 0..6) {
+        for (daysAgo in 0..13) {
             val date = today.minusDays(daysAgo.toLong())
             val entity = buildEntityForDay(client, date)
             results.add(entity)
@@ -101,76 +103,57 @@ class HealthConnectSyncWorker @AssistedInject constructor(
         val endInstant = date.plusDays(1).atStartOfDay(zone).toInstant()
         val timeRange = TimeRangeFilter.between(startInstant, endInstant)
 
-        // Pasos
-        val stepsResp = client.readRecords(
-            ReadRecordsRequest(StepsRecord::class, timeRange)
-        )
-        val steps = stepsResp.records.sumOf { it.count }.toInt()
-
-        // Distancia
-        val distResp = client.readRecords(
-            ReadRecordsRequest(DistanceRecord::class, timeRange)
-        )
-        val distanceMeters = distResp.records
-            .sumOf { it.distance.inMeters }.toFloat()
-
-        // Calorías activas
-        var calories = 0f
-        try {
-            val calResp = client.readRecords(
-                ReadRecordsRequest(ActiveCaloriesBurnedRecord::class, timeRange)
-            )
-            calories = calResp.records
-                .sumOf { it.energy.inKilocalories }.toFloat()
+        // Pasos, distancia y calorías con la agregación de Health Connect: si varias apps
+        // (reloj, Samsung Health, Google Fit…) escriben lo mismo, cuenta cada dato una sola vez
+        // según la prioridad de fuentes de Health Connect, en vez de sumarlos.
+        suspend fun <T : Any> agg(metric: androidx.health.connect.client.aggregate.AggregateMetric<T>): T? = try {
+            client.aggregate(androidx.health.connect.client.request.AggregateRequest(setOf(metric), timeRange))[metric]
         } catch (e: Exception) {
-            Log.w(TAG, "Error leyendo ActiveCaloriesBurnedRecord: ${e.message}")
+            Log.w(TAG, "Sin dato agregado: ${e.message}"); null
         }
+        val steps = (agg(StepsRecord.COUNT_TOTAL) ?: 0L).toInt()
+        val distanceMeters = (agg(DistanceRecord.DISTANCE_TOTAL)?.inMeters ?: 0.0).toFloat()
 
+        // Calorías activas (solo el movimiento, sin el metabolismo basal)
+        var calories = (agg(ActiveCaloriesBurnedRecord.ACTIVE_CALORIES_TOTAL)?.inKilocalories ?: 0.0).toFloat()
         if (calories <= 0f) {
-            try {
-                val totalCalResp = client.readRecords(
-                    ReadRecordsRequest(TotalCaloriesBurnedRecord::class, timeRange)
+            // Algunas apps solo guardan el gasto total (basal + movimiento): se resta el basal
+            // de tu perfil, proporcional a la parte del día transcurrida.
+            val total = (agg(TotalCaloriesBurnedRecord.ENERGY_TOTAL)?.inKilocalories ?: 0.0).toFloat()
+            if (total > 0f) {
+                val goals = userPreferences.userGoals.first()
+                val bmr = com.lifedashboard.domain.energy.EnergyCalculator.bmr(
+                    com.lifedashboard.domain.energy.Sex.from(goals.sex), goals.weightKg, goals.heightCm, goals.ageYears
                 )
-                val totalCal = totalCalResp.records
-                    .sumOf { it.energy.inKilocalories }.toFloat()
-                if (totalCal > 0f) {
-                    val stepKcal = steps * 0.04f
-                    calories = if (stepKcal > 0f) stepKcal else totalCal
-                }
-            } catch (e: Exception) {
-                Log.w(TAG, "Error leyendo TotalCaloriesBurnedRecord: ${e.message}")
+                val now = Instant.now()
+                val fraction = if (now.isBefore(endInstant)) Duration.between(startInstant, now).toMinutes() / 1440f else 1f
+                calories = (total - bmr * fraction).coerceAtLeast(0f)
             }
         }
+        // Sin datos de calorías pero con pasos: estimación (≈0,04 kcal por paso)
+        if (calories <= 0f && steps > 0) calories = steps * 0.04f
 
-        // Si no se reportaron calorías pero hay pasos, estimar 0.04 kcal por paso
-        if (calories <= 0f && steps > 0) {
-            calories = steps * 0.04f
-        }
-
-        // Sueño
+        // Sueño de la noche anterior: de las 18:00 del día previo a las 14:00 de hoy.
         val sleepStart = date.minusDays(1).atTime(18, 0).atZone(zone).toInstant()
-        val sleepEnd = date.atTime(12, 0).atZone(zone).toInstant()
+        val sleepEnd = date.atTime(14, 0).atZone(zone).toInstant()
         val sleepRange = TimeRangeFilter.between(sleepStart, sleepEnd)
-        val sleepResp = client.readRecords(
-            ReadRecordsRequest(SleepSessionRecord::class, sleepRange)
+        val sleepResp = client.readRecords(ReadRecordsRequest(SleepSessionRecord::class, sleepRange))
+        val night = com.lifedashboard.domain.health.SleepCalculator.night(
+            sleepResp.records.map { s ->
+                com.lifedashboard.domain.health.SleepCalculator.Session(
+                    source = s.metadata.dataOrigin.packageName,
+                    start = s.startTime.toEpochMilli(),
+                    end = s.endTime.toEpochMilli(),
+                    stages = s.stages.map { st ->
+                        com.lifedashboard.domain.health.SleepCalculator.Stage(st.startTime.toEpochMilli(), st.endTime.toEpochMilli(), st.stage)
+                    },
+                )
+            },
+            sleepStart.toEpochMilli(), sleepEnd.toEpochMilli(),
         )
-
-        var totalSleepMinutes = 0L
-        var deepMinutes = 0L
-        var remMinutes = 0L
-
-        sleepResp.records.forEach { session ->
-            val sessionMinutes = Duration.between(session.startTime, session.endTime).toMinutes()
-            totalSleepMinutes += sessionMinutes
-
-            session.stages.forEach { stage ->
-                val stageMin = Duration.between(stage.startTime, stage.endTime).toMinutes()
-                when (stage.stage) {
-                    SleepSessionRecord.STAGE_TYPE_DEEP -> deepMinutes += stageMin
-                    SleepSessionRecord.STAGE_TYPE_REM  -> remMinutes  += stageMin
-                }
-            }
-        }
+        val totalSleepMinutes = night.asleepMinutes
+        val deepMinutes = night.deepMinutes
+        val remMinutes = night.remMinutes
 
         // Sesiones de ejercicio (Health Connect / Entrenamientos registrados)
         try {
@@ -197,8 +180,8 @@ class HealthConnectSyncWorker @AssistedInject constructor(
                 }
                 // Calorías activas dentro de la sesión
                 val sessionKcal = try {
-                    client.readRecords(ReadRecordsRequest(ActiveCaloriesBurnedRecord::class, sessionRange))
-                        .records.sumOf { it.energy.inKilocalories }.toFloat()
+                    client.aggregate(androidx.health.connect.client.request.AggregateRequest(setOf(ActiveCaloriesBurnedRecord.ACTIVE_CALORIES_TOTAL), sessionRange))[ActiveCaloriesBurnedRecord.ACTIVE_CALORIES_TOTAL]
+                        ?.inKilocalories?.toFloat() ?: 0f
                 } catch (e: Exception) { 0f }
                 // Pulso medio y máximo (permiso opcional)
                 var avgHr = 0
