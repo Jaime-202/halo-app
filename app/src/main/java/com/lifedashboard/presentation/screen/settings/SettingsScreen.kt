@@ -101,6 +101,9 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
         HealthPermission.getReadPermission(androidx.health.connect.client.records.RestingHeartRateRecord::class),
         HealthPermission.getReadPermission(androidx.health.connect.client.records.HeartRateRecord::class),
         HealthPermission.getReadPermission(androidx.health.connect.client.records.HeartRateVariabilityRmssdRecord::class),
+        // Gasto total: Samsung Health suele guardar este y no las calorías activas
+        HealthPermission.getReadPermission(androidx.health.connect.client.records.TotalCaloriesBurnedRecord::class),
+        HealthPermission.getReadPermission(androidx.health.connect.client.records.BasalMetabolicRateRecord::class),
     )
     val coreHealthPermissions = healthPermissions.take(5).toSet()
 

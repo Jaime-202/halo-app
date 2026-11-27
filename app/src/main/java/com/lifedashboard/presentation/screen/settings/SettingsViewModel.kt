@@ -437,6 +437,67 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    // ─── Diagnóstico de Health Connect ────────────────────────────────────────
+
+    private val _healthDiagnostic = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
+    val healthDiagnostic: kotlinx.coroutines.flow.StateFlow<String?> = _healthDiagnostic
+
+    fun dismissHealthDiagnostic() { _healthDiagnostic.value = null }
+
+    /** Lee en el momento lo que Health Connect tiene de hoy y de anoche, fuente por fuente. */
+    fun runHealthDiagnostic() {
+        _healthDiagnostic.value = "Leyendo Health Connect…"
+        viewModelScope.launch(Dispatchers.IO) {
+            val out = StringBuilder()
+            try {
+                val client = HealthConnectClient.getOrCreate(context)
+                val granted = client.permissionController.getGrantedPermissions()
+                fun has(name: String) = granted.any { it.endsWith(name) }
+                out.appendLine("PERMISOS")
+                listOf("READ_STEPS" to "Pasos", "READ_ACTIVE_CALORIES_BURNED" to "Calorías activas",
+                    "READ_TOTAL_CALORIES_BURNED" to "Gasto total", "READ_SLEEP" to "Sueño",
+                    "READ_EXERCISE" to "Ejercicio").forEach { (p, l) -> out.appendLine("  $l: ${if (has(p)) "sí" else "NO"}") }
+                if (!has("READ_TOTAL_CALORIES_BURNED")) out.appendLine("  → Toca Conectar para dar el permiso de gasto total")
+
+                val zone = java.time.ZoneId.systemDefault()
+                val today = java.time.LocalDate.now()
+                val range = androidx.health.connect.client.time.TimeRangeFilter.between(
+                    today.atStartOfDay(zone).toInstant(), java.time.Instant.now())
+                val t = com.lifedashboard.core.health.HealthTotals(client)
+                fun line(label: String, r: com.lifedashboard.core.health.HealthTotals.Reading, unit: String) {
+                    out.appendLine("  $label: ${r.value.toInt()} $unit (${r.method})")
+                    r.bySource.forEach { (src, v) -> out.appendLine("     · ${src.substringAfterLast('.')}: ${v.toInt()} $unit") }
+                    r.error?.let { out.appendLine("     error: $it") }
+                }
+                out.appendLine().appendLine("HOY")
+                line("Pasos", t.steps(range), "")
+                line("Calorías activas", t.activeKcal(range), "kcal")
+                line("Gasto total", t.totalKcal(range), "kcal")
+
+                out.appendLine().appendLine("ANOCHE (18:00 a 14:00)")
+                val ss = today.minusDays(1).atTime(18, 0).atZone(zone).toInstant()
+                val se = today.atTime(14, 0).atZone(zone).toInstant()
+                val sessions = client.readRecords(androidx.health.connect.client.request.ReadRecordsRequest(
+                    androidx.health.connect.client.records.SleepSessionRecord::class,
+                    androidx.health.connect.client.time.TimeRangeFilter.between(ss, se))).records
+                val fmt = java.time.format.DateTimeFormatter.ofPattern("HH:mm")
+                sessions.forEach { r ->
+                    val st = r.startTime.atZone(zone).format(fmt); val en = r.endTime.atZone(zone).format(fmt)
+                    out.appendLine("  · ${r.metadata.dataOrigin.packageName.substringAfterLast('.')}: $st–$en, ${r.stages.size} fases")
+                }
+                val night = com.lifedashboard.domain.health.SleepCalculator.night(sessions.map { r ->
+                    com.lifedashboard.domain.health.SleepCalculator.Session(r.metadata.dataOrigin.packageName, r.startTime.toEpochMilli(), r.endTime.toEpochMilli(),
+                        r.stages.map { com.lifedashboard.domain.health.SleepCalculator.Stage(it.startTime.toEpochMilli(), it.endTime.toEpochMilli(), it.stage) })
+                }, ss.toEpochMilli(), se.toEpochMilli())
+                out.appendLine("  Halo cuenta: ${night.asleepMinutes / 60}h ${"%02d".format(night.asleepMinutes % 60)} (fuente: ${night.source?.substringAfterLast('.') ?: "ninguna"})")
+            } catch (e: Exception) {
+                out.appendLine("Error: ${e.message ?: e.javaClass.simpleName}")
+            }
+            _healthDiagnostic.value = out.toString().trimEnd()
+            scheduler.runHealthSyncNow()
+        }
+    }
+
     fun onHealthConnectConnect(context: Context) {
         _state.value = _state.value.copy(healthConnectGranted = true)
         scheduler.runHealthSyncNow()

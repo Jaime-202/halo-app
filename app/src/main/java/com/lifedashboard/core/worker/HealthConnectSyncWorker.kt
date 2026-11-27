@@ -103,23 +103,17 @@ class HealthConnectSyncWorker @AssistedInject constructor(
         val endInstant = date.plusDays(1).atStartOfDay(zone).toInstant()
         val timeRange = TimeRangeFilter.between(startInstant, endInstant)
 
-        // Pasos, distancia y calorías con la agregación de Health Connect: si varias apps
-        // (reloj, Samsung Health, Google Fit…) escriben lo mismo, cuenta cada dato una sola vez
-        // según la prioridad de fuentes de Health Connect, en vez de sumarlos.
-        suspend fun <T : Any> agg(metric: androidx.health.connect.client.aggregate.AggregateMetric<T>): T? = try {
-            client.aggregate(androidx.health.connect.client.request.AggregateRequest(setOf(metric), timeRange))[metric]
-        } catch (e: Exception) {
-            Log.w(TAG, "Sin dato agregado: ${e.message}"); null
-        }
-        val steps = (agg(StepsRecord.COUNT_TOTAL) ?: 0L).toInt()
-        val distanceMeters = (agg(DistanceRecord.DISTANCE_TOTAL)?.inMeters ?: 0.0).toFloat()
+        // Pasos, distancia y calorías sin duplicar datos de varias apps
+        val totals = com.lifedashboard.core.health.HealthTotals(client)
+        val steps = totals.steps(timeRange).value.toInt()
+        val distanceMeters = totals.distanceMeters(timeRange).value.toFloat()
 
         // Calorías activas (solo el movimiento, sin el metabolismo basal)
-        var calories = (agg(ActiveCaloriesBurnedRecord.ACTIVE_CALORIES_TOTAL)?.inKilocalories ?: 0.0).toFloat()
+        var calories = totals.activeKcal(timeRange).value.toFloat()
         if (calories <= 0f) {
-            // Algunas apps solo guardan el gasto total (basal + movimiento): se resta el basal
-            // de tu perfil, proporcional a la parte del día transcurrida.
-            val total = (agg(TotalCaloriesBurnedRecord.ENERGY_TOTAL)?.inKilocalories ?: 0.0).toFloat()
+            // Samsung Health y otras apps a menudo solo guardan el gasto total (basal + movimiento):
+            // se resta el basal de tu perfil, proporcional a la parte del día transcurrida.
+            val total = totals.totalKcal(timeRange).value.toFloat()
             if (total > 0f) {
                 val goals = userPreferences.userGoals.first()
                 val bmr = com.lifedashboard.domain.energy.EnergyCalculator.bmr(

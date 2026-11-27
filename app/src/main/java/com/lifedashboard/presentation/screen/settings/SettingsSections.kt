@@ -596,6 +596,33 @@ internal fun ConnectionsSection(state: SettingsState, viewModel: SettingsViewMod
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
         SettingsItem(
+            icon      = Icons.Default.Search,
+            iconColor = Ion,
+            title     = "Comprobar datos de salud",
+            subtitle  = "Qué lee Halo de Health Connect hoy, app por app",
+            trailing  = {
+                TextButton(onClick = { viewModel.runHealthDiagnostic() }) { Text("Comprobar", color = Ion, style = MaterialTheme.typography.labelLarge) }
+            },
+        )
+        val diag by viewModel.healthDiagnostic.collectAsState()
+        diag?.let { text ->
+            val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
+            AlertDialog(
+                onDismissRequest = { viewModel.dismissHealthDiagnostic() },
+                containerColor = Panel,
+                title = { Text("Datos de Health Connect", color = TextHigh) },
+                text = {
+                    Text(text, color = TextHigh, style = androidx.compose.ui.text.TextStyle(fontFamily = MonoFamily, fontSize = 12.sp),
+                        modifier = Modifier.verticalScroll(rememberScrollState()))
+                },
+                confirmButton = { TextButton(onClick = { viewModel.dismissHealthDiagnostic() }) { Text("Cerrar", color = Ion) } },
+                dismissButton = { TextButton(onClick = { clipboard.setText(androidx.compose.ui.text.AnnotatedString(text)) }) { Text("Copiar", color = TextMute) } },
+            )
+        }
+
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+        SettingsItem(
             icon      = Icons.Default.CalendarMonth,
             iconColor = Cyan400,
             title     = "Calendario del Dispositivo",
